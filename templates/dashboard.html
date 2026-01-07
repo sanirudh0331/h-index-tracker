@@ -3,113 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HMS Researchers</title>
+    <title>HMS Research Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+                    colors: {
+                        dark: { 950: '#09090b', 900: '#18181b', 800: '#27272a', 700: '#3f3f46', 500: '#71717a', 400: '#a1a1aa', 200: '#e4e4e7', 50: '#fafafa' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .tabular-nums { font-variant-numeric: tabular-nums; }
+    </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen">
-    <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-6">
-                <h1 class="text-2xl font-bold">
-                    <span class="text-red-400">HMS</span> Researcher Tracker
-                </h1>
-                <div class="flex gap-4">
-                    <a href="/" class="text-white font-medium">All Researchers</a>
-                    <a href="/rising-stars" class="text-gray-400 hover:text-yellow-400">Rising Stars</a>
+<body class="bg-dark-950 text-dark-50 min-h-screen antialiased">
+    <!-- Navigation -->
+    <nav class="border-b border-dark-800 bg-dark-950/80 backdrop-blur-sm sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="flex items-center justify-between h-14">
+                <div class="flex items-center gap-8">
+                    <span class="text-sm font-semibold tracking-tight">HMS Research</span>
+                    <div class="flex items-center gap-1">
+                        <a href="/" class="px-3 py-1.5 text-sm font-medium text-dark-50 bg-dark-800 rounded-md">
+                            Researchers
+                        </a>
+                        <a href="/rising-stars" class="px-3 py-1.5 text-sm font-medium text-dark-400 hover:text-dark-200 transition-colors">
+                            Rising Stars
+                        </a>
+                    </div>
                 </div>
-            </div>
-            <div class="text-sm text-gray-400">
-                {{ "{:,}".format(total) }} researchers
+                <div class="text-xs text-dark-500">
+                    {{ "{:,}".format(total) }} researchers
+                </div>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 py-8">
-        <!-- Search and Sort -->
-        <div class="flex flex-wrap gap-4 mb-6 items-center">
-            <form class="flex gap-2" method="get">
-                <input type="text" name="search" value="{{ search }}"
-                       placeholder="Search by name..."
-                       class="bg-gray-800 text-gray-200 rounded px-3 py-2 border border-gray-700 w-64">
+    <main class="max-w-6xl mx-auto px-6 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-2xl font-semibold tracking-tight mb-1">Researchers</h1>
+            <p class="text-sm text-dark-500">Harvard Medical School faculty and affiliated researchers</p>
+        </div>
+
+        <!-- Search and Filters -->
+        <div class="flex items-center justify-between mb-6">
+            <form class="flex items-center gap-3" method="get">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-dark-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input type="text" name="search" value="{{ search }}"
+                           placeholder="Search researchers..."
+                           class="w-64 pl-9 pr-4 py-2 text-sm bg-dark-900 border border-dark-800 rounded-lg text-dark-50 placeholder-dark-500 focus:outline-none focus:border-dark-700 focus:ring-1 focus:ring-dark-700 transition-colors">
+                </div>
                 <input type="hidden" name="sort" value="{{ sort }}">
                 <input type="hidden" name="order" value="{{ order }}">
-                <button type="submit" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white">
-                    Search
-                </button>
                 {% if search %}
-                <a href="/" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">Clear</a>
+                <a href="/" class="text-xs text-dark-500 hover:text-dark-300 transition-colors">Clear</a>
                 {% endif %}
             </form>
 
-            <div class="flex items-center gap-2 ml-auto">
-                <span class="text-gray-400 text-sm">Sort:</span>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-dark-500">Sort by</span>
                 <select onchange="window.location='/?sort='+this.value+'&order={{ order }}&search={{ search }}'"
-                        class="bg-gray-800 text-gray-200 rounded px-3 py-2 border border-gray-700">
+                        class="text-sm bg-dark-900 border border-dark-800 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-700 cursor-pointer">
                     <option value="h_index" {% if sort == 'h_index' %}selected{% endif %}>H-Index</option>
                     <option value="cited_by_count" {% if sort == 'cited_by_count' %}selected{% endif %}>Citations</option>
-                    <option value="works_count" {% if sort == 'works_count' %}selected{% endif %}>Works</option>
+                    <option value="works_count" {% if sort == 'works_count' %}selected{% endif %}>Publications</option>
                     <option value="two_yr_citedness" {% if sort == 'two_yr_citedness' %}selected{% endif %}>2yr Citedness</option>
-                    <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
                 </select>
                 <a href="/?sort={{ sort }}&order={{ 'asc' if order == 'desc' else 'desc' }}&search={{ search }}"
-                   class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded text-sm">
-                    {{ '↑' if order == 'asc' else '↓' }}
+                   class="p-1.5 text-dark-500 hover:text-dark-300 hover:bg-dark-800 rounded transition-colors">
+                    <svg class="w-4 h-4 {% if order == 'asc' %}rotate-180{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/>
+                    </svg>
                 </a>
             </div>
         </div>
 
-        <!-- Researchers Table -->
-        <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+        <!-- Table -->
+        <div class="bg-dark-900 border border-dark-800 rounded-xl overflow-hidden">
             <table class="w-full">
                 <thead>
-                    <tr class="text-gray-400 text-sm border-b border-gray-700 bg-gray-750">
-                        <th class="text-left py-3 px-4">#</th>
-                        <th class="text-left py-3 px-4">Researcher</th>
-                        <th class="text-left py-3 px-4">Topics</th>
-                        <th class="text-right py-3 px-4">H-Index</th>
-                        <th class="text-right py-3 px-4">Works</th>
-                        <th class="text-right py-3 px-4">Citations</th>
-                        <th class="text-right py-3 px-4">2yr Cite</th>
+                    <tr class="border-b border-dark-800">
+                        <th class="text-left text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">Researcher</th>
+                        <th class="text-left text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">Field</th>
+                        <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">H-Index</th>
+                        <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">Publications</th>
+                        <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">Citations</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="divide-y divide-dark-800">
                     {% for r in researchers %}
-                    <tr class="border-b border-gray-700 hover:bg-gray-750 cursor-pointer"
+                    <tr class="hover:bg-dark-800/50 transition-colors cursor-pointer group"
                         onclick="window.location='/researcher/{{ r.id }}'">
-                        <td class="py-3 px-4 text-gray-500">{{ (page - 1) * per_page + loop.index }}</td>
                         <td class="py-3 px-4">
-                            <div class="font-medium text-white">{{ r.name }}</div>
-                            {% if r.affiliations %}
-                            <div class="text-xs text-gray-500">
-                                {{ r.affiliations[0].name if r.affiliations else '' }}
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-medium text-white">
+                                    {{ r.name[0] }}
+                                </div>
+                                <div>
+                                    <div class="text-sm font-medium text-dark-50 group-hover:text-indigo-400 transition-colors">{{ r.name }}</div>
+                                    {% if r.affiliations %}
+                                    <div class="text-xs text-dark-500">{{ r.affiliations[0].name[:40] if r.affiliations else '' }}</div>
+                                    {% endif %}
+                                </div>
                             </div>
+                        </td>
+                        <td class="py-3 px-4">
+                            {% if r.topics %}
+                            <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-dark-800 text-dark-400 rounded">
+                                {{ r.topics[0].name[:25] }}{% if r.topics[0].name|length > 25 %}...{% endif %}
+                            </span>
                             {% endif %}
                         </td>
-                        <td class="py-3 px-4">
-                            <div class="flex flex-wrap gap-1">
-                                {% for t in r.topics[:2] %}
-                                <span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded">
-                                    {{ t.name[:25] }}{% if t.name|length > 25 %}...{% endif %}
-                                </span>
-                                {% endfor %}
-                            </div>
+                        <td class="py-3 px-4 text-right">
+                            <span class="text-sm font-semibold text-dark-50 tabular-nums">{{ r.h_index }}</span>
                         </td>
                         <td class="py-3 px-4 text-right">
-                            <span class="text-green-400 font-bold">{{ r.h_index }}</span>
+                            <span class="text-sm text-dark-400 tabular-nums">{{ "{:,}".format(r.works_count) }}</span>
                         </td>
-                        <td class="py-3 px-4 text-right text-gray-300">
-                            {{ "{:,}".format(r.works_count) }}
-                        </td>
-                        <td class="py-3 px-4 text-right text-yellow-400">
-                            {{ "{:,}".format(r.cited_by_count) }}
-                        </td>
-                        <td class="py-3 px-4 text-right text-blue-400">
-                            {{ "%.1f"|format(r.two_yr_citedness) }}
+                        <td class="py-3 px-4 text-right">
+                            <span class="text-sm text-dark-400 tabular-nums">{{ "{:,}".format(r.cited_by_count) }}</span>
                         </td>
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="7" class="py-12 text-center text-gray-500">
+                        <td colspan="5" class="py-12 text-center text-dark-500">
                             No researchers found
                         </td>
                     </tr>
@@ -120,26 +150,38 @@
 
         <!-- Pagination -->
         {% if total_pages > 1 %}
-        <div class="flex justify-center gap-2 mt-6">
-            {% if page > 1 %}
-            <a href="/?page={{ page - 1 }}&sort={{ sort }}&order={{ order }}&search={{ search }}"
-               class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">← Prev</a>
-            {% endif %}
-
-            <span class="px-4 py-2 text-gray-400">
-                Page {{ page }} of {{ total_pages }}
-            </span>
-
-            {% if page < total_pages %}
-            <a href="/?page={{ page + 1 }}&sort={{ sort }}&order={{ order }}&search={{ search }}"
-               class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">Next →</a>
-            {% endif %}
+        <div class="flex items-center justify-between mt-6">
+            <div class="text-sm text-dark-500">
+                Showing {{ (page - 1) * per_page + 1 }} - {{ [page * per_page, total] | min }} of {{ "{:,}".format(total) }}
+            </div>
+            <div class="flex items-center gap-2">
+                {% if page > 1 %}
+                <a href="/?page={{ page - 1 }}&sort={{ sort }}&order={{ order }}&search={{ search }}"
+                   class="px-3 py-1.5 text-sm text-dark-400 hover:text-dark-200 bg-dark-900 border border-dark-800 rounded-lg hover:border-dark-700 transition-colors">
+                    Previous
+                </a>
+                {% endif %}
+                <span class="px-3 py-1.5 text-sm text-dark-500">
+                    {{ page }} / {{ total_pages }}
+                </span>
+                {% if page < total_pages %}
+                <a href="/?page={{ page + 1 }}&sort={{ sort }}&order={{ order }}&search={{ search }}"
+                   class="px-3 py-1.5 text-sm text-dark-400 hover:text-dark-200 bg-dark-900 border border-dark-800 rounded-lg hover:border-dark-700 transition-colors">
+                    Next
+                </a>
+                {% endif %}
+            </div>
         </div>
         {% endif %}
     </main>
 
-    <footer class="text-center text-gray-500 text-sm py-8 border-t border-gray-800">
-        Data from <a href="https://openalex.org" class="text-blue-400 hover:underline">OpenAlex</a>
+    <footer class="border-t border-dark-800 mt-16">
+        <div class="max-w-6xl mx-auto px-6 py-6">
+            <div class="flex items-center justify-between text-xs text-dark-500">
+                <span>Data from OpenAlex</span>
+                <span>Harvard Medical School Researchers</span>
+            </div>
+        </div>
     </footer>
 </body>
 </html>
