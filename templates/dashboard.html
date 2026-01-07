@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMS Researchers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold">
+                <span class="text-red-400">HMS</span> Researcher Tracker
+            </h1>
+            <div class="text-sm text-gray-400">
+                {{ "{:,}".format(total) }} researchers
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        <!-- Search and Sort -->
+        <div class="flex flex-wrap gap-4 mb-6 items-center">
+            <form class="flex gap-2" method="get">
+                <input type="text" name="search" value="{{ search }}"
+                       placeholder="Search by name..."
+                       class="bg-gray-800 text-gray-200 rounded px-3 py-2 border border-gray-700 w-64">
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="hidden" name="order" value="{{ order }}">
+                <button type="submit" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white">
+                    Search
+                </button>
+                {% if search %}
+                <a href="/" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">Clear</a>
+                {% endif %}
+            </form>
+
+            <div class="flex items-center gap-2 ml-auto">
+                <span class="text-gray-400 text-sm">Sort:</span>
+                <select onchange="window.location='/?sort='+this.value+'&order={{ order }}&search={{ search }}'"
+                        class="bg-gray-800 text-gray-200 rounded px-3 py-2 border border-gray-700">
+                    <option value="h_index" {% if sort == 'h_index' %}selected{% endif %}>H-Index</option>
+                    <option value="cited_by_count" {% if sort == 'cited_by_count' %}selected{% endif %}>Citations</option>
+                    <option value="works_count" {% if sort == 'works_count' %}selected{% endif %}>Works</option>
+                    <option value="two_yr_citedness" {% if sort == 'two_yr_citedness' %}selected{% endif %}>2yr Citedness</option>
+                    <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+                </select>
+                <a href="/?sort={{ sort }}&order={{ 'asc' if order == 'desc' else 'desc' }}&search={{ search }}"
+                   class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded text-sm">
+                    {{ '↑' if order == 'asc' else '↓' }}
+                </a>
+            </div>
+        </div>
+
+        <!-- Researchers Table -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-gray-400 text-sm border-b border-gray-700 bg-gray-750">
+                        <th class="text-left py-3 px-4">#</th>
+                        <th class="text-left py-3 px-4">Researcher</th>
+                        <th class="text-left py-3 px-4">Topics</th>
+                        <th class="text-right py-3 px-4">H-Index</th>
+                        <th class="text-right py-3 px-4">Works</th>
+                        <th class="text-right py-3 px-4">Citations</th>
+                        <th class="text-right py-3 px-4">2yr Cite</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in researchers %}
+                    <tr class="border-b border-gray-700 hover:bg-gray-750 cursor-pointer"
+                        onclick="window.location='/researcher/{{ r.id }}'">
+                        <td class="py-3 px-4 text-gray-500">{{ (page - 1) * per_page + loop.index }}</td>
+                        <td class="py-3 px-4">
+                            <div class="font-medium text-white">{{ r.name }}</div>
+                            {% if r.affiliations %}
+                            <div class="text-xs text-gray-500">
+                                {{ r.affiliations[0].name if r.affiliations else '' }}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4">
+                            <div class="flex flex-wrap gap-1">
+                                {% for t in r.topics[:2] %}
+                                <span class="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded">
+                                    {{ t.name[:25] }}{% if t.name|length > 25 %}...{% endif %}
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <span class="text-green-400 font-bold">{{ r.h_index }}</span>
+                        </td>
+                        <td class="py-3 px-4 text-right text-gray-300">
+                            {{ "{:,}".format(r.works_count) }}
+                        </td>
+                        <td class="py-3 px-4 text-right text-yellow-400">
+                            {{ "{:,}".format(r.cited_by_count) }}
+                        </td>
+                        <td class="py-3 px-4 text-right text-blue-400">
+                            {{ "%.1f"|format(r.two_yr_citedness) }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="py-12 text-center text-gray-500">
+                            No researchers found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="flex justify-center gap-2 mt-6">
+            {% if page > 1 %}
+            <a href="/?page={{ page - 1 }}&sort={{ sort }}&order={{ order }}&search={{ search }}"
+               class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">← Prev</a>
+            {% endif %}
+
+            <span class="px-4 py-2 text-gray-400">
+                Page {{ page }} of {{ total_pages }}
+            </span>
+
+            {% if page < total_pages %}
+            <a href="/?page={{ page + 1 }}&sort={{ sort }}&order={{ order }}&search={{ search }}"
+               class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded">Next →</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </main>
+
+    <footer class="text-center text-gray-500 text-sm py-8 border-t border-gray-800">
+        Data from <a href="https://openalex.org" class="text-blue-400 hover:underline">OpenAlex</a>
+    </footer>
+</body>
+</html>
