@@ -9,9 +9,15 @@
 <body class="bg-gray-900 text-gray-100 min-h-screen">
     <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <h1 class="text-2xl font-bold">
-                <span class="text-red-400">HMS</span> Researcher Tracker
-            </h1>
+            <div class="flex items-center gap-6">
+                <h1 class="text-2xl font-bold">
+                    <span class="text-red-400">HMS</span> Researcher Tracker
+                </h1>
+                <div class="flex gap-4">
+                    <a href="/" class="text-white font-medium">All Researchers</a>
+                    <a href="/rising-stars" class="text-gray-400 hover:text-yellow-400">Rising Stars</a>
+                </div>
+            </div>
             <div class="text-sm text-gray-400">
                 {{ "{:,}".format(total) }} researchers
             </div>

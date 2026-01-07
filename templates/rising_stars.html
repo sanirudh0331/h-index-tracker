@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rising Stars - HMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <nav class="bg-gray-800 border-b border-gray-700 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-6">
+                <h1 class="text-2xl font-bold">
+                    <span class="text-red-400">HMS</span> Researcher Tracker
+                </h1>
+                <div class="flex gap-4">
+                    <a href="/" class="text-gray-400 hover:text-white">All Researchers</a>
+                    <a href="/rising-stars" class="text-yellow-400 font-medium">Rising Stars</a>
+                </div>
+            </div>
+            <div class="text-sm text-gray-400">
+                {{ total }} rising stars
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        <div class="mb-6">
+            <h2 class="text-3xl font-bold text-yellow-400 mb-2">Rising Stars</h2>
+            <p class="text-gray-400">Researchers with H-index 2-30 showing fastest growth (slope = H-index increase per year)</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-4 gap-4 mb-6">
+            <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 text-center">
+                <div class="text-3xl font-bold text-yellow-400">{{ total }}</div>
+                <div class="text-sm text-gray-400">Rising Stars</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 text-center">
+                <div class="text-3xl font-bold text-green-400">
+                    {% if researchers %}{{ "%.2f"|format(researchers[0].slope) }}{% else %}--{% endif %}
+                </div>
+                <div class="text-sm text-gray-400">Top Slope</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 text-center">
+                <div class="text-3xl font-bold text-blue-400">
+                    {% if researchers %}{{ "%.1f"|format(researchers|map(attribute='slope')|list|sum / researchers|length) }}{% else %}--{% endif %}
+                </div>
+                <div class="text-sm text-gray-400">Avg Slope</div>
+            </div>
+            <div class="bg-gray-800 rounded-lg border border-gray-700 p-4 text-center">
+                <div class="text-3xl font-bold text-purple-400">
+                    {% if researchers %}{{ "%.0f"|format(researchers|map(attribute='h_index')|list|sum / researchers|length) }}{% else %}--{% endif %}
+                </div>
+                <div class="text-sm text-gray-400">Avg H-Index</div>
+            </div>
+        </div>
+
+        <!-- Researchers Table -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
+            <table class="w-full">
+                <thead>
+                    <tr class="text-gray-400 text-sm border-b border-gray-700 bg-gray-750">
+                        <th class="text-left py-3 px-4">#</th>
+                        <th class="text-left py-3 px-4">Researcher</th>
+                        <th class="text-center py-3 px-4">H-Index Growth</th>
+                        <th class="text-right py-3 px-4">Slope</th>
+                        <th class="text-right py-3 px-4">Current H</th>
+                        <th class="text-right py-3 px-4">2yr Cite</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in researchers %}
+                    <tr class="border-b border-gray-700 hover:bg-gray-750 cursor-pointer"
+                        onclick="window.location='/researcher/{{ r.id }}'">
+                        <td class="py-3 px-4 text-gray-500">{{ loop.index }}</td>
+                        <td class="py-3 px-4">
+                            <div class="font-medium text-white">{{ r.name }}</div>
+                            {% if r.topics %}
+                            <div class="text-xs text-gray-500">{{ r.topics[0].name[:30] if r.topics else '' }}</div>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4">
+                            <!-- Mini sparkline -->
+                            <div class="flex items-center justify-center gap-1 h-8">
+                                {% set h_vals = r.h_history.values()|list %}
+                                {% set max_h = h_vals|max if h_vals else 1 %}
+                                {% for year in range(2015, 2026) %}
+                                    {% set h = r.h_history.get(year, 0) %}
+                                    <div class="w-2 bg-yellow-500 rounded-sm"
+                                         style="height: {{ (h / max_h * 100) if max_h > 0 else 0 }}%"
+                                         title="{{ year }}: H={{ h }}"></div>
+                                {% endfor %}
+                            </div>
+                            <div class="text-xs text-gray-500 text-center">
+                                {{ r.h_history.get(2015, 0) }} → {{ r.h_history.get(2025, r.h_index) }}
+                            </div>
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <span class="text-yellow-400 font-bold text-lg">+{{ "%.2f"|format(r.slope) }}</span>
+                            <span class="text-gray-500 text-xs">/yr</span>
+                        </td>
+                        <td class="py-3 px-4 text-right">
+                            <span class="text-green-400 font-semibold">{{ r.h_index }}</span>
+                        </td>
+                        <td class="py-3 px-4 text-right text-blue-400">
+                            {{ "%.1f"|format(r.two_yr_citedness) }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-gray-500">
+                            <div class="text-xl mb-2">No rising stars computed yet</div>
+                            <div class="text-sm">Run the compute_history.py script to analyze candidates</div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <footer class="text-center text-gray-500 text-sm py-8 border-t border-gray-800">
+        Data from <a href="https://openalex.org" class="text-blue-400 hover:underline">OpenAlex</a> |
+        Rising stars: H-index 2-30 with highest 10-year growth slope
+    </footer>
+</body>
+</html>

@@ -50,8 +50,24 @@
                     <div class="text-2xl font-bold text-purple-400">{{ r.i10_index }}</div>
                     <div class="text-xs text-gray-400">i10-Index</div>
                 </div>
+                {% if r.slope %}
+                <div class="bg-gray-700 rounded-lg p-4 text-center">
+                    <div class="text-2xl font-bold text-yellow-400">+{{ "%.2f"|format(r.slope) }}</div>
+                    <div class="text-xs text-gray-400">H-Index Slope/yr</div>
+                </div>
+                {% endif %}
             </div>
         </div>
+
+        {% if r.h_history %}
+        <!-- H-Index History Chart -->
+        <div class="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6">
+            <h2 class="text-xl font-semibold text-yellow-400 mb-4">H-Index Growth (2015-2025)</h2>
+            <div class="h-48">
+                <canvas id="hIndexChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
 
         <div class="grid grid-cols-2 gap-6">
             <!-- Topics -->
@@ -153,6 +169,50 @@
                         grid: { display: false },
                         ticks: { color: '#fbbf24' },
                         title: { display: true, text: 'Citations', color: '#fbbf24' }
+                    }
+                }
+            }
+        });
+        </script>
+        {% endif %}
+
+        {% if r.h_history %}
+        <script>
+        const hHistoryData = {{ r.h_history | tojson }};
+        const hYears = Object.keys(hHistoryData).sort();
+        const hValues = hYears.map(y => hHistoryData[y]);
+
+        const hCtx = document.getElementById('hIndexChart').getContext('2d');
+        new Chart(hCtx, {
+            type: 'line',
+            data: {
+                labels: hYears,
+                datasets: [{
+                    label: 'H-Index',
+                    data: hValues,
+                    borderColor: '#facc15',
+                    backgroundColor: 'rgba(250, 204, 21, 0.2)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 5,
+                    pointBackgroundColor: '#facc15'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: { color: '#9ca3af' }
+                    },
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: { color: '#9ca3af' },
+                        beginAtZero: true
                     }
                 }
             }

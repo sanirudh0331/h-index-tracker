@@ -89,6 +89,48 @@ async def dashboard(
     )
 
 
+@app.get("/rising-stars", response_class=HTMLResponse)
+async def rising_stars(request: Request):
+    """Rising stars - researchers with high H-index growth."""
+    conn = get_db()
+
+    # Get researchers with computed history, sorted by slope
+    researchers = conn.execute("""
+        SELECT * FROM researchers
+        WHERE history_computed = 1 AND slope > 0
+        ORDER BY slope DESC
+        LIMIT 100
+    """).fetchall()
+
+    # Get their H-index history
+    researchers_data = []
+    for r in researchers:
+        data = dict(r)
+        data["topics"] = json.loads(data["topics"]) if data["topics"] else []
+        data["affiliations"] = json.loads(data["affiliations"]) if data["affiliations"] else []
+
+        # Get H-index history
+        history = conn.execute("""
+            SELECT year, h_index FROM h_index_history
+            WHERE researcher_id = ?
+            ORDER BY year
+        """, (data["id"],)).fetchall()
+        data["h_history"] = {row[0]: row[1] for row in history}
+
+        researchers_data.append(data)
+
+    conn.close()
+
+    return templates.TemplateResponse(
+        "rising_stars.html",
+        {
+            "request": request,
+            "researchers": researchers_data,
+            "total": len(researchers_data)
+        }
+    )
+
+
 @app.get("/researcher/{researcher_id}", response_class=HTMLResponse)
 async def researcher_detail(request: Request, researcher_id: str):
     """Detail page for a single researcher."""
@@ -97,15 +139,25 @@ async def researcher_detail(request: Request, researcher_id: str):
         "SELECT * FROM researchers WHERE id = ?",
         (researcher_id,)
     ).fetchone()
-    conn.close()
 
     if not row:
+        conn.close()
         return HTMLResponse("Researcher not found", status_code=404)
 
     data = dict(row)
     data["topics"] = json.loads(data["topics"]) if data["topics"] else []
     data["affiliations"] = json.loads(data["affiliations"]) if data["affiliations"] else []
     data["counts_by_year"] = json.loads(data["counts_by_year"]) if data["counts_by_year"] else {}
+
+    # Get H-index history if available
+    history = conn.execute("""
+        SELECT year, h_index FROM h_index_history
+        WHERE researcher_id = ?
+        ORDER BY year
+    """, (researcher_id,)).fetchall()
+    data["h_history"] = {row[0]: row[1] for row in history}
+
+    conn.close()
 
     return templates.TemplateResponse(
         "researcher.html",
