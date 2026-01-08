@@ -117,7 +117,8 @@ async def rising_stars(
     page: int = 1,
     per_page: int = 50,
     start_year: int = 2015,
-    end_year: int = 2025
+    end_year: int = 2025,
+    category: str = ""
 ):
     """Rising stars - researchers with high H-index growth."""
     conn = get_db()
@@ -132,16 +133,33 @@ async def rising_stars(
         sort = "slope"
     order_dir = "DESC" if order == "desc" else "ASC"
 
-    # Count total with computed history
-    total = conn.execute(
-        "SELECT COUNT(*) FROM researchers WHERE history_computed = 1"
-    ).fetchone()[0]
+    # Get all categories for dropdown
+    categories = [row[0] for row in conn.execute(
+        "SELECT DISTINCT primary_category FROM researchers WHERE primary_category IS NOT NULL ORDER BY primary_category"
+    ).fetchall()]
+
+    # Count total with computed history (filtered by category if specified)
+    if category:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM researchers WHERE history_computed = 1 AND primary_category = ?",
+            (category,)
+        ).fetchone()[0]
+    else:
+        total = conn.execute(
+            "SELECT COUNT(*) FROM researchers WHERE history_computed = 1"
+        ).fetchone()[0]
 
     # Get all researchers with computed history (we'll calculate slope and sort in Python)
-    all_researchers = conn.execute("""
-        SELECT * FROM researchers
-        WHERE history_computed = 1
-    """).fetchall()
+    if category:
+        all_researchers = conn.execute("""
+            SELECT * FROM researchers
+            WHERE history_computed = 1 AND primary_category = ?
+        """, (category,)).fetchall()
+    else:
+        all_researchers = conn.execute("""
+            SELECT * FROM researchers
+            WHERE history_computed = 1
+        """).fetchall()
 
     # Get all H-index history at once for efficiency
     all_history = conn.execute("""
@@ -220,7 +238,9 @@ async def rising_stars(
             "end_year": end_year,
             "top_slope": top_slope,
             "avg_slope": avg_slope,
-            "avg_h_index": avg_h
+            "avg_h_index": avg_h,
+            "categories": categories,
+            "category": category
         }
     )
 

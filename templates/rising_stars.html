@@ -88,52 +88,82 @@
             </div>
         </div>
 
-        <!-- Year Range & Sort Controls -->
-        <div class="flex items-center justify-between gap-4 mb-6">
-            <!-- Year Range Filter -->
-            <div class="flex items-center gap-3">
-                <span class="text-xs text-dark-500">Year Range</span>
-                <select id="startYear"
-                        onchange="updateYearRange()"
-                        class="text-sm bg-dark-900 border border-dark-800 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-700 cursor-pointer">
-                    {% for y in range(2015, 2026) %}
-                    <option value="{{ y }}" {% if y == start_year %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-                <span class="text-dark-500">→</span>
-                <select id="endYear"
-                        onchange="updateYearRange()"
-                        class="text-sm bg-dark-900 border border-dark-800 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-700 cursor-pointer">
-                    {% for y in range(2015, 2026) %}
-                    <option value="{{ y }}" {% if y == end_year %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-            </div>
+        <!-- Filters -->
+        <div class="bg-dark-900 border border-dark-800 rounded-xl p-4 mb-6">
+            <div class="flex flex-wrap items-center gap-6">
+                <!-- Category Filter -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-dark-500">Category</span>
+                    <select id="categorySelect"
+                            onchange="updateFilters()"
+                            class="text-sm bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-600 cursor-pointer min-w-[200px]">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-            <!-- Sort Controls -->
-            <div class="flex items-center gap-2">
-                <span class="text-xs text-dark-500">Sort by</span>
-                <select onchange="window.location='/rising-stars?sort='+this.value+'&order={{ order }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}'"
-                        class="text-sm bg-dark-900 border border-dark-800 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-700 cursor-pointer">
-                    <option value="slope" {% if sort == 'slope' %}selected{% endif %}>Growth Rate</option>
-                    <option value="h_index" {% if sort == 'h_index' %}selected{% endif %}>H-Index</option>
-                    <option value="two_yr_citedness" {% if sort == 'two_yr_citedness' %}selected{% endif %}>2yr Citedness</option>
-                    <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
-                </select>
-                <a href="/rising-stars?sort={{ sort }}&order={{ 'asc' if order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}"
-                   class="p-1.5 text-dark-500 hover:text-dark-300 hover:bg-dark-800 rounded transition-colors">
-                    <svg class="w-4 h-4 {% if order == 'asc' %}rotate-180{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/>
-                    </svg>
-                </a>
+                <!-- Year Range Filter -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-dark-500">Years</span>
+                    <select id="startYear"
+                            onchange="updateFilters()"
+                            class="text-sm bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-600 cursor-pointer">
+                        {% for y in range(2015, 2026) %}
+                        <option value="{{ y }}" {% if y == start_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="text-dark-500">→</span>
+                    <select id="endYear"
+                            onchange="updateFilters()"
+                            class="text-sm bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-600 cursor-pointer">
+                        {% for y in range(2015, 2026) %}
+                        <option value="{{ y }}" {% if y == end_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Sort Controls -->
+                <div class="flex items-center gap-2 ml-auto">
+                    <span class="text-xs text-dark-500">Sort</span>
+                    <select id="sortSelect"
+                            onchange="updateFilters()"
+                            class="text-sm bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-600 cursor-pointer">
+                        <option value="slope" {% if sort == 'slope' %}selected{% endif %}>Growth Rate</option>
+                        <option value="h_index" {% if sort == 'h_index' %}selected{% endif %}>H-Index</option>
+                        <option value="two_yr_citedness" {% if sort == 'two_yr_citedness' %}selected{% endif %}>2yr Citedness</option>
+                        <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
+                    </select>
+                    <a href="/rising-stars?sort={{ sort }}&order={{ 'asc' if order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
+                       class="p-1.5 text-dark-500 hover:text-dark-300 hover:bg-dark-800 rounded transition-colors">
+                        <svg class="w-4 h-4 {% if order == 'asc' %}rotate-180{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </a>
+                </div>
             </div>
+            {% if category %}
+            <div class="mt-3 pt-3 border-t border-dark-800">
+                <span class="text-xs text-dark-500">Filtering by:</span>
+                <span class="ml-2 px-2 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 rounded-full">{{ category }}</span>
+                <a href="/rising-stars?sort={{ sort }}&order={{ order }}&start_year={{ start_year }}&end_year={{ end_year }}"
+                   class="ml-2 text-xs text-dark-500 hover:text-dark-300">Clear filter</a>
+            </div>
+            {% endif %}
         </div>
 
         <script>
-            function updateYearRange() {
+            function updateFilters() {
+                const category = document.getElementById('categorySelect').value;
                 const startYear = document.getElementById('startYear').value;
                 const endYear = document.getElementById('endYear').value;
-                window.location = '/rising-stars?sort={{ sort }}&order={{ order }}&page=1&start_year=' + startYear + '&end_year=' + endYear;
+                const sort = document.getElementById('sortSelect').value;
+                let url = '/rising-stars?sort=' + sort + '&order={{ order }}&page=1&start_year=' + startYear + '&end_year=' + endYear;
+                if (category) {
+                    url += '&category=' + encodeURIComponent(category);
+                }
+                window.location = url;
             }
         </script>
 
@@ -144,26 +174,26 @@
                     <tr class="border-b border-dark-800">
                         <th class="text-left text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4 w-12">#</th>
                         <th class="text-left text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">
-                            <a href="/rising-stars?sort=name&order={{ 'desc' if sort == 'name' and order == 'asc' else 'asc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}"
+                            <a href="/rising-stars?sort=name&order={{ 'desc' if sort == 'name' and order == 'asc' else 'asc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
                                class="hover:text-dark-300 {% if sort == 'name' %}text-dark-200{% endif %}">
                                 Researcher {% if sort == 'name' %}{{ '↑' if order == 'asc' else '↓' }}{% endif %}
                             </a>
                         </th>
                         <th class="text-center text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">{{ start_year }}-{{ end_year }} Trend</th>
                         <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">
-                            <a href="/rising-stars?sort=slope&order={{ 'asc' if sort == 'slope' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}"
+                            <a href="/rising-stars?sort=slope&order={{ 'asc' if sort == 'slope' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
                                class="hover:text-dark-300 {% if sort == 'slope' %}text-dark-200{% endif %}">
                                 Growth {% if sort == 'slope' %}{{ '↑' if order == 'asc' else '↓' }}{% endif %}
                             </a>
                         </th>
                         <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">
-                            <a href="/rising-stars?sort=h_index&order={{ 'asc' if sort == 'h_index' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}"
+                            <a href="/rising-stars?sort=h_index&order={{ 'asc' if sort == 'h_index' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
                                class="hover:text-dark-300 {% if sort == 'h_index' %}text-dark-200{% endif %}">
                                 H-Index {% if sort == 'h_index' %}{{ '↑' if order == 'asc' else '↓' }}{% endif %}
                             </a>
                         </th>
                         <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">
-                            <a href="/rising-stars?sort=two_yr_citedness&order={{ 'asc' if sort == 'two_yr_citedness' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}"
+                            <a href="/rising-stars?sort=two_yr_citedness&order={{ 'asc' if sort == 'two_yr_citedness' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
                                class="hover:text-dark-300 {% if sort == 'two_yr_citedness' %}text-dark-200{% endif %}">
                                 2yr Cite {% if sort == 'two_yr_citedness' %}{{ '↑' if order == 'asc' else '↓' }}{% endif %}
                             </a>
@@ -248,7 +278,7 @@
             </div>
             <div class="flex items-center gap-2">
                 {% if page > 1 %}
-                <a href="/rising-stars?page={{ page - 1 }}&sort={{ sort }}&order={{ order }}&start_year={{ start_year }}&end_year={{ end_year }}"
+                <a href="/rising-stars?page={{ page - 1 }}&sort={{ sort }}&order={{ order }}&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
                    class="px-3 py-1.5 text-sm text-dark-400 hover:text-dark-200 bg-dark-900 border border-dark-800 rounded-lg hover:border-dark-700 transition-colors">
                     Previous
                 </a>
@@ -257,7 +287,7 @@
                     {{ page }} / {{ total_pages }}
                 </span>
                 {% if page < total_pages %}
-                <a href="/rising-stars?page={{ page + 1 }}&sort={{ sort }}&order={{ order }}&start_year={{ start_year }}&end_year={{ end_year }}"
+                <a href="/rising-stars?page={{ page + 1 }}&sort={{ sort }}&order={{ order }}&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
                    class="px-3 py-1.5 text-sm text-dark-400 hover:text-dark-200 bg-dark-900 border border-dark-800 rounded-lg hover:border-dark-700 transition-colors">
                     Next
                 </a>
