@@ -89,16 +89,42 @@ async def dashboard(
     )
 
 
+def calculate_slope(history: dict, start_year: int, end_year: int) -> float:
+    """Calculate slope for a given year range using linear regression."""
+    years = [y for y in range(start_year, end_year + 1) if y in history]
+    if len(years) < 2:
+        return 0.0
+
+    n = len(years)
+    sum_x = sum(years)
+    sum_y = sum(history[y] for y in years)
+    sum_xy = sum(y * history[y] for y in years)
+    sum_x2 = sum(y * y for y in years)
+
+    denominator = n * sum_x2 - sum_x * sum_x
+    if denominator == 0:
+        return 0.0
+
+    slope = (n * sum_xy - sum_x * sum_y) / denominator
+    return round(slope, 3)
+
+
 @app.get("/rising-stars", response_class=HTMLResponse)
 async def rising_stars(
     request: Request,
     sort: str = "slope",
     order: str = "desc",
     page: int = 1,
-    per_page: int = 50
+    per_page: int = 50,
+    start_year: int = 2015,
+    end_year: int = 2025
 ):
     """Rising stars - researchers with high H-index growth."""
     conn = get_db()
+
+    # Validate year range
+    start_year = max(2015, min(2025, start_year))
+    end_year = max(start_year, min(2025, end_year))
 
     # Valid sort columns
     valid_sorts = ["slope", "h_index", "two_yr_citedness", "name"]
@@ -111,60 +137,90 @@ async def rising_stars(
         "SELECT COUNT(*) FROM researchers WHERE history_computed = 1"
     ).fetchone()[0]
 
-    # Get researchers with computed history
-    offset = (page - 1) * per_page
-    researchers = conn.execute(f"""
+    # Get all researchers with computed history (we'll calculate slope and sort in Python)
+    all_researchers = conn.execute("""
         SELECT * FROM researchers
         WHERE history_computed = 1
-        ORDER BY {sort} {order_dir}
-        LIMIT ? OFFSET ?
-    """, (per_page, offset)).fetchall()
+    """).fetchall()
 
-    # Get their H-index history
+    # Get all H-index history at once for efficiency
+    all_history = conn.execute("""
+        SELECT researcher_id, year, h_index FROM h_index_history
+        WHERE year BETWEEN ? AND ?
+    """, (start_year, end_year)).fetchall()
+
+    # Build history lookup
+    history_lookup = {}
+    for row in all_history:
+        rid, year, h = row
+        if rid not in history_lookup:
+            history_lookup[rid] = {}
+        history_lookup[rid][year] = h
+
+    # Process researchers and calculate dynamic slope
     researchers_data = []
-    for r in researchers:
+    for r in all_researchers:
         data = dict(r)
         data["topics"] = json.loads(data["topics"]) if data["topics"] else []
         data["affiliations"] = json.loads(data["affiliations"]) if data["affiliations"] else []
 
-        # Get H-index history
-        history = conn.execute("""
+        # Get full history for sparkline
+        full_history = conn.execute("""
             SELECT year, h_index FROM h_index_history
             WHERE researcher_id = ?
             ORDER BY year
         """, (data["id"],)).fetchall()
-        data["h_history"] = {row[0]: row[1] for row in history}
+        data["h_history"] = {row[0]: row[1] for row in full_history}
+
+        # Calculate slope for selected year range
+        h_in_range = history_lookup.get(data["id"], {})
+        data["dynamic_slope"] = calculate_slope(h_in_range, start_year, end_year)
+
+        # Get start and end H-index for the selected range
+        data["h_start"] = h_in_range.get(start_year, 0)
+        data["h_end"] = h_in_range.get(end_year, data["h_index"])
 
         researchers_data.append(data)
 
-    # Get stats for top boxes
-    stats = conn.execute("""
-        SELECT
-            MAX(slope) as top_slope,
-            AVG(slope) as avg_slope,
-            AVG(h_index) as avg_h_index
-        FROM researchers
-        WHERE history_computed = 1
-    """).fetchone()
+    # Sort by the selected column
+    if sort == "slope":
+        researchers_data.sort(key=lambda x: x["dynamic_slope"], reverse=(order == "desc"))
+    elif sort == "h_index":
+        researchers_data.sort(key=lambda x: x["h_index"], reverse=(order == "desc"))
+    elif sort == "two_yr_citedness":
+        researchers_data.sort(key=lambda x: x["two_yr_citedness"], reverse=(order == "desc"))
+    elif sort == "name":
+        researchers_data.sort(key=lambda x: x["name"], reverse=(order == "desc"))
+
+    # Calculate stats for selected year range
+    slopes = [r["dynamic_slope"] for r in researchers_data]
+    top_slope = max(slopes) if slopes else 0
+    avg_slope = sum(slopes) / len(slopes) if slopes else 0
+    avg_h = sum(r["h_index"] for r in researchers_data) / len(researchers_data) if researchers_data else 0
+
+    # Paginate
+    total_pages = (total + per_page - 1) // per_page
+    offset = (page - 1) * per_page
+    paginated = researchers_data[offset:offset + per_page]
 
     conn.close()
-
-    total_pages = (total + per_page - 1) // per_page
 
     return templates.TemplateResponse(
         "rising_stars.html",
         {
             "request": request,
-            "researchers": researchers_data,
+            "researchers": paginated,
             "total": total,
             "page": page,
             "per_page": per_page,
             "total_pages": total_pages,
             "sort": sort,
             "order": order,
-            "top_slope": stats[0] or 0,
-            "avg_slope": stats[1] or 0,
-            "avg_h_index": stats[2] or 0
+            "start_year": start_year,
+            "end_year": end_year,
+            "top_slope": top_slope,
+            "avg_slope": avg_slope,
+            "avg_h_index": avg_h
         }
     )
 
