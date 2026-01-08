@@ -148,12 +148,11 @@ def main():
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
 
-    # Get candidates
+    # Get candidates (all researchers without history)
     candidates = cursor.execute("""
         SELECT id, name, h_index, two_yr_citedness, works_count
         FROM researchers
-        WHERE h_index BETWEEN 2 AND 30
-        AND history_computed = 0
+        WHERE history_computed = 0
         ORDER BY two_yr_citedness DESC
         LIMIT ?
     """, (args.limit,)).fetchall()
