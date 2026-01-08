@@ -2,7 +2,12 @@ services:
   - type: web
     name: hms-researcher-tracker
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: |
+      curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash
+      apt-get install -y git-lfs
+      git lfs install
+      git lfs pull
+      pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
