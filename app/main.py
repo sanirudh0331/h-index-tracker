@@ -108,14 +108,14 @@ async def rising_stars(
 
     # Count total with computed history
     total = conn.execute(
-        "SELECT COUNT(*) FROM researchers WHERE history_computed = 1 AND slope > 0"
+        "SELECT COUNT(*) FROM researchers WHERE history_computed = 1"
     ).fetchone()[0]
 
     # Get researchers with computed history
     offset = (page - 1) * per_page
     researchers = conn.execute(f"""
         SELECT * FROM researchers
-        WHERE history_computed = 1 AND slope > 0
+        WHERE history_computed = 1
         ORDER BY {sort} {order_dir}
         LIMIT ? OFFSET ?
     """, (per_page, offset)).fetchall()
@@ -144,7 +144,7 @@ async def rising_stars(
             AVG(slope) as avg_slope,
             AVG(h_index) as avg_h_index
         FROM researchers
-        WHERE history_computed = 1 AND slope > 0
+        WHERE history_computed = 1
     """).fetchone()
 
     conn.close()
