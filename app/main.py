@@ -90,17 +90,35 @@ async def dashboard(
 
 
 @app.get("/rising-stars", response_class=HTMLResponse)
-async def rising_stars(request: Request):
+async def rising_stars(
+    request: Request,
+    sort: str = "slope",
+    order: str = "desc",
+    page: int = 1,
+    per_page: int = 50
+):
     """Rising stars - researchers with high H-index growth."""
     conn = get_db()
 
-    # Get researchers with computed history, sorted by slope
-    researchers = conn.execute("""
+    # Valid sort columns
+    valid_sorts = ["slope", "h_index", "two_yr_citedness", "name"]
+    if sort not in valid_sorts:
+        sort = "slope"
+    order_dir = "DESC" if order == "desc" else "ASC"
+
+    # Count total with computed history
+    total = conn.execute(
+        "SELECT COUNT(*) FROM researchers WHERE history_computed = 1 AND slope > 0"
+    ).fetchone()[0]
+
+    # Get researchers with computed history
+    offset = (page - 1) * per_page
+    researchers = conn.execute(f"""
         SELECT * FROM researchers
         WHERE history_computed = 1 AND slope > 0
-        ORDER BY slope DESC
-        LIMIT 100
-    """).fetchall()
+        ORDER BY {sort} {order_dir}
+        LIMIT ? OFFSET ?
+    """, (per_page, offset)).fetchall()
 
     # Get their H-index history
     researchers_data = []
@@ -119,14 +137,34 @@ async def rising_stars(request: Request):
 
         researchers_data.append(data)
 
+    # Get stats for top boxes
+    stats = conn.execute("""
+        SELECT
+            MAX(slope) as top_slope,
+            AVG(slope) as avg_slope,
+            AVG(h_index) as avg_h_index
+        FROM researchers
+        WHERE history_computed = 1 AND slope > 0
+    """).fetchone()
+
     conn.close()
+
+    total_pages = (total + per_page - 1) // per_page
 
     return templates.TemplateResponse(
         "rising_stars.html",
         {
             "request": request,
             "researchers": researchers_data,
-            "total": len(researchers_data)
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages,
+            "sort": sort,
+            "order": order,
+            "top_slope": stats[0] or 0,
+            "avg_slope": stats[1] or 0,
+            "avg_h_index": stats[2] or 0
         }
     )
 
