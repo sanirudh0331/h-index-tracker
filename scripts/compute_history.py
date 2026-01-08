@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Config
-OPENALEX_EMAIL = "hindex-tracker@example.com"
+OPENALEX_EMAIL = "sanirudh0331@gmail.com"
 DB_PATH = Path(__file__).parent.parent / "data" / "hindex.db"
 HISTORY_START = 2015
 HISTORY_END = 2025
