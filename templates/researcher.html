@@ -58,14 +58,21 @@
                     <div>
                         <div class="flex items-center gap-2">
                             <h1 class="text-2xl font-semibold tracking-tight text-dark-50">{{ r.name }}</h1>
-                            {% if r.institution_count and r.institution_count > 6 %}
+                            {% if r.data_quality_issues and r.data_quality_issues|length > 0 %}
                             <div class="relative group">
                                 <svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24" title="Potential data quality issue">
                                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15v-2h2v2h-2zm0-4V7h2v6h-2z"/>
                                 </svg>
-                                <div class="absolute left-0 top-6 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-3 text-xs text-dark-300 w-64 z-50 shadow-lg">
-                                    <div class="font-medium text-red-400 mb-1">Data Quality Warning</div>
-                                    This profile has {{ r.institution_count }} institutions linked, suggesting multiple researchers may have been merged into one record by OpenAlex.
+                                <div class="absolute left-0 top-6 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-3 text-xs text-dark-300 w-72 z-50 shadow-lg">
+                                    <div class="font-medium text-red-400 mb-2">Data Quality Warning</div>
+                                    <ul class="space-y-1">
+                                    {% for issue in r.data_quality_issues %}
+                                        <li class="flex items-start gap-1.5">
+                                            <span class="text-red-400 mt-0.5">•</span>
+                                            <span>{{ issue.message }}</span>
+                                        </li>
+                                    {% endfor %}
+                                    </ul>
                                 </div>
                             </div>
                             {% endif %}
@@ -132,43 +139,141 @@
                 </div>
                 <div class="bg-dark-800/50 border border-dark-800 rounded-lg p-4">
                     <div class="text-xl font-semibold text-sky-400 tabular-nums">{{ "%.2f"|format(r.two_yr_citedness) }}</div>
-                    <div class="text-xs text-dark-500 mt-1">2yr Citedness</div>
+                    <div class="text-xs text-dark-500 mt-1 flex items-center gap-1">
+                        2yr Citedness
+                        <div class="relative group">
+                            <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-52 z-50 shadow-lg">
+                                Average citations per work published in the last 2 years (measures recent impact)
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="bg-dark-800/50 border border-dark-800 rounded-lg p-4">
                     <div class="text-xl font-semibold text-violet-400 tabular-nums">{{ r.i10_index }}</div>
-                    <div class="text-xs text-dark-500 mt-1">i10-Index</div>
+                    <div class="text-xs text-dark-500 mt-1 flex items-center gap-1">
+                        i10-Index
+                        <div class="relative group">
+                            <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-52 z-50 shadow-lg">
+                                Number of publications with at least 10 citations each
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {% if r.slope %}
                 <div class="bg-dark-800/50 border border-dark-800 rounded-lg p-4">
                     <div class="text-xl font-semibold text-emerald-400 tabular-nums">+{{ "%.2f"|format(r.slope) }}</div>
-                    <div class="text-xs text-dark-500 mt-1">Slope/yr</div>
+                    <div class="text-xs text-dark-500 mt-1 flex items-center gap-1">
+                        Slope/yr
+                        <div class="relative group">
+                            <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-52 z-50 shadow-lg">
+                                Average annual h-index growth rate (higher = faster rising researcher)
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {% else %}
                 <div class="bg-dark-800/50 border border-dark-800 rounded-lg p-4">
                     <div class="text-xl font-semibold text-dark-500 tabular-nums">--</div>
-                    <div class="text-xs text-dark-500 mt-1">Slope/yr</div>
+                    <div class="text-xs text-dark-500 mt-1 flex items-center gap-1">
+                        Slope/yr
+                        <div class="relative group">
+                            <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-52 z-50 shadow-lg">
+                                Average annual h-index growth rate (higher = faster rising researcher)
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 {% endif %}
             </div>
 
-            <!-- Stats Grid - Row 2 (Velocities) -->
-            <div class="grid grid-cols-2 gap-3 mt-3">
+            <!-- Stats Grid - Row 2 (Velocities & Impact) -->
+            <div class="grid grid-cols-4 gap-3 mt-3">
                 <div class="bg-dark-800/50 border border-dark-800 rounded-lg p-4">
                     {% if r.pub_velocity %}
                     <div class="text-xl font-semibold text-pink-400 tabular-nums">{{ r.pub_velocity }}</div>
-                    <div class="text-xs text-dark-500 mt-1">Papers/year (avg)</div>
                     {% else %}
                     <div class="text-xl font-semibold text-dark-500 tabular-nums">--</div>
-                    <div class="text-xs text-dark-500 mt-1">Papers/year</div>
                     {% endif %}
+                    <div class="text-xs text-dark-500 mt-1 flex items-center gap-1">
+                        Median papers/yr
+                        <div class="relative group">
+                            <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-56 z-50 shadow-lg">
+                                Median papers published per year (2015-2025). Median is used to reduce impact of outlier years.
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="bg-dark-800/50 border border-dark-800 rounded-lg p-4">
                     {% if r.citation_velocity %}
                     <div class="text-xl font-semibold text-orange-400 tabular-nums">{{ "{:,.0f}".format(r.citation_velocity) }}</div>
-                    <div class="text-xs text-dark-500 mt-1">Citations/year (avg)</div>
                     {% else %}
                     <div class="text-xl font-semibold text-dark-500 tabular-nums">--</div>
-                    <div class="text-xs text-dark-500 mt-1">Citations/year</div>
+                    {% endif %}
+                    <div class="text-xs text-dark-500 mt-1 flex items-center gap-1">
+                        Median citations/yr
+                        <div class="relative group">
+                            <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-56 z-50 shadow-lg">
+                                Median citations received per year (2015-2025). Median is used to reduce impact of outlier years.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-dark-800/50 border border-dark-800 rounded-lg p-4">
+                    {% if r.citations_per_paper %}
+                    <div class="text-xl font-semibold text-cyan-400 tabular-nums">{{ r.citations_per_paper }}</div>
+                    {% else %}
+                    <div class="text-xl font-semibold text-dark-500 tabular-nums">--</div>
+                    {% endif %}
+                    <div class="text-xs text-dark-500 mt-1 flex items-center gap-1">
+                        Citations/paper
+                        <div class="relative group">
+                            <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-48 z-50 shadow-lg">
+                                Average citations per publication (total citations / total papers)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-dark-800/50 border border-dark-800 rounded-lg p-4">
+                    {% if r.percentile_label %}
+                    <div class="text-xl font-semibold text-yellow-400">{{ r.percentile_label }}</div>
+                    <div class="text-xs text-dark-500 mt-1 flex items-center gap-1">
+                        in {{ r.primary_category[:20] }}{% if r.primary_category|length > 20 %}...{% endif %}
+                        <div class="relative group">
+                            <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-52 z-50 shadow-lg">
+                                Ranking by h-index within their primary research category (#{{ r.category_rank }} of {{ "{:,}".format(r.category_total) }})
+                            </div>
+                        </div>
+                    </div>
+                    {% elif r.percentile %}
+                    <div class="text-xl font-semibold text-dark-300 tabular-nums">{{ r.percentile|int }}%</div>
+                    <div class="text-xs text-dark-500 mt-1">Percentile</div>
+                    {% else %}
+                    <div class="text-xl font-semibold text-dark-500 tabular-nums">--</div>
+                    <div class="text-xs text-dark-500 mt-1">Percentile</div>
                     {% endif %}
                 </div>
             </div>
@@ -180,6 +285,42 @@
             <h2 class="text-sm font-medium text-dark-400 uppercase tracking-wider mb-4">H-Index Growth (2015-2025)</h2>
             <div class="h-48">
                 <canvas id="hIndexChart"></canvas>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if r.top_papers and r.top_papers|length > 0 %}
+        <!-- Key Papers Section -->
+        <div class="bg-dark-900 border border-dark-800 rounded-xl p-6 mb-6">
+            <div class="flex items-center gap-2 mb-4">
+                <h2 class="text-sm font-medium text-dark-400 uppercase tracking-wider">Key Papers</h2>
+                <div class="relative group">
+                    <svg class="w-3.5 h-3.5 text-dark-600 hover:text-dark-400 cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div class="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block bg-dark-800 border border-dark-700 rounded-lg p-2 text-xs text-dark-300 w-56 z-50 shadow-lg">
+                        Top papers by citation count that drive h-index growth
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-3">
+                {% for paper in r.top_papers %}
+                <a href="{{ paper.link }}" target="_blank" class="block group">
+                    <div class="flex items-start gap-3 p-3 rounded-lg bg-dark-800/30 border border-dark-800 hover:border-dark-700 hover:bg-dark-800/50 transition-all">
+                        <div class="flex-shrink-0 w-16 text-right">
+                            <div class="text-lg font-semibold text-amber-400 tabular-nums">{{ "{:,}".format(paper.citations) }}</div>
+                            <div class="text-xs text-dark-500">citations</div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm text-dark-200 group-hover:text-dark-50 transition-colors line-clamp-2">{{ paper.title }}</div>
+                            <div class="text-xs text-dark-500 mt-1">{{ paper.year }}</div>
+                        </div>
+                        <svg class="w-4 h-4 text-dark-600 group-hover:text-dark-400 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                    </div>
+                </a>
+                {% endfor %}
             </div>
         </div>
         {% endif %}
@@ -221,12 +362,12 @@
         </div>
 
         <!-- Alternative Names (shown if flagged or has many alternatives) -->
-        {% if r.alternative_names and (r.alternative_names|length > 3 or (r.institution_count and r.institution_count > 6)) %}
-        <div class="bg-dark-900 border border-dark-800 rounded-xl p-6 mt-6 {% if r.institution_count and r.institution_count > 6 %}border-red-900/50{% endif %}">
+        {% if r.alternative_names and (r.alternative_names|length > 3 or (r.data_quality_issues and r.data_quality_issues|length > 0)) %}
+        <div class="bg-dark-900 border border-dark-800 rounded-xl p-6 mt-6 {% if r.data_quality_issues and r.data_quality_issues|length > 0 %}border-red-900/50{% endif %}">
             <div class="flex items-center gap-2 mb-4">
                 <h2 class="text-sm font-medium text-dark-400 uppercase tracking-wider">Name Variations in OpenAlex</h2>
-                {% if r.institution_count and r.institution_count > 6 %}
-                <span class="px-2 py-0.5 text-xs font-medium bg-red-900/30 text-red-400 rounded-full">May indicate merged profiles</span>
+                {% if r.data_quality_issues and r.data_quality_issues|length > 0 %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-red-900/30 text-red-400 rounded-full">May indicate data quality issues</span>
                 {% endif %}
             </div>
             <div class="flex flex-wrap gap-2">
@@ -312,13 +453,80 @@
         {% endif %}
 
         {% if r.h_history %}
+        <!-- Paper popup for chart clicks -->
+        <div id="paperPopup" class="hidden absolute z-50 bg-dark-800 border border-dark-700 rounded-lg shadow-xl p-3 max-w-xs">
+            <div class="flex items-center justify-between mb-2">
+                <span id="popupYear" class="text-sm font-medium text-amber-400"></span>
+                <button onclick="closePaperPopup()" class="text-dark-500 hover:text-dark-300">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="popupPapers" class="space-y-2"></div>
+        </div>
+
         <script>
         const hHistoryData = {{ r.h_history | tojson }};
         const hYears = Object.keys(hHistoryData).sort();
         const hValues = hYears.map(y => hHistoryData[y]);
 
+        // Key papers data
+        const keyPapers = [
+            {% for paper in r.top_papers %}
+            { year: '{{ paper.year }}', title: {{ paper.title | tojson }}, citations: {{ paper.citations }}, link: '{{ paper.link }}' }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+
+        // Group papers by year
+        const papersByYear = {};
+        keyPapers.forEach(p => {
+            if (!papersByYear[p.year]) papersByYear[p.year] = [];
+            papersByYear[p.year].push(p);
+        });
+
+        const keyPaperYears = new Set(Object.keys(papersByYear));
+
+        // Custom point styling - highlight years with key papers
+        const pointRadii = hYears.map(y => keyPaperYears.has(y) ? 8 : 4);
+        const pointColors = hYears.map(y => keyPaperYears.has(y) ? '#f59e0b' : '#10b981');
+        const pointBorders = hYears.map(y => keyPaperYears.has(y) ? '#fbbf24' : '#10b981');
+
+        // Popup functions
+        function showPaperPopup(year, x, y) {
+            const popup = document.getElementById('paperPopup');
+            const papers = papersByYear[year];
+            if (!papers) return;
+
+            document.getElementById('popupYear').textContent = year + ' (' + papers.length + ' paper' + (papers.length > 1 ? 's' : '') + ')';
+
+            const container = document.getElementById('popupPapers');
+            container.innerHTML = papers.map(p => `
+                <a href="${p.link}" target="_blank" class="block p-2 rounded bg-dark-700/50 hover:bg-dark-700 transition-colors group">
+                    <div class="text-xs text-dark-200 group-hover:text-dark-50 line-clamp-2">${p.title}</div>
+                    <div class="text-xs text-amber-400 mt-1">${p.citations.toLocaleString()} citations →</div>
+                </a>
+            `).join('');
+
+            popup.style.left = Math.min(x, window.innerWidth - 320) + 'px';
+            popup.style.top = (y + 10) + 'px';
+            popup.classList.remove('hidden');
+        }
+
+        function closePaperPopup() {
+            document.getElementById('paperPopup').classList.add('hidden');
+        }
+
+        // Close popup when clicking outside
+        document.addEventListener('click', function(e) {
+            const popup = document.getElementById('paperPopup');
+            if (!popup.contains(e.target) && !e.target.closest('canvas')) {
+                closePaperPopup();
+            }
+        });
+
         const hCtx = document.getElementById('hIndexChart').getContext('2d');
-        new Chart(hCtx, {
+        const hChart = new Chart(hCtx, {
             type: 'line',
             data: {
                 labels: hYears,
@@ -329,16 +537,40 @@
                     backgroundColor: 'rgba(16, 185, 129, 0.1)',
                     fill: true,
                     tension: 0.3,
-                    pointRadius: 4,
-                    pointBackgroundColor: '#10b981',
+                    pointRadius: pointRadii,
+                    pointBackgroundColor: pointColors,
+                    pointBorderColor: pointBorders,
+                    pointBorderWidth: 2,
+                    pointHoverRadius: hYears.map(y => keyPaperYears.has(y) ? 10 : 6),
                     borderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                onClick: function(event, elements) {
+                    if (elements.length > 0) {
+                        const index = elements[0].index;
+                        const year = hYears[index];
+                        if (keyPaperYears.has(year)) {
+                            const rect = event.native.target.getBoundingClientRect();
+                            showPaperPopup(year, event.native.clientX, event.native.clientY);
+                        }
+                    }
+                },
                 plugins: {
-                    legend: { display: false }
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: function(context) {
+                                const year = context.label;
+                                if (keyPaperYears.has(year)) {
+                                    return '📄 Click to view paper' + (papersByYear[year].length > 1 ? 's' : '');
+                                }
+                                return '';
+                            }
+                        }
+                    }
                 },
                 scales: {
                     x: {

@@ -94,15 +94,42 @@
         <!-- Filters -->
         <div class="bg-dark-900 border border-dark-800 rounded-xl p-4 mb-6">
             <div class="flex flex-wrap items-center gap-6">
-                <!-- Category Filter -->
-                <div class="flex items-center gap-2">
+                <!-- Category Filter (Multi-select) -->
+                <div class="flex items-center gap-2 relative">
                     <span class="text-xs text-dark-500">Category</span>
-                    <select id="categorySelect"
+                    <div class="relative">
+                        <button type="button" onclick="toggleCategoryDropdown()"
+                                class="text-sm bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-600 cursor-pointer min-w-[180px] text-left flex items-center justify-between gap-2">
+                            <span id="categoryLabel">{% if selected_categories %}{{ selected_categories|length }} selected{% else %}All{% endif %}</span>
+                            <svg class="w-4 h-4 text-dark-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <div id="categoryDropdown" class="hidden absolute top-full left-0 mt-1 w-64 max-h-64 overflow-y-auto bg-dark-900 border border-dark-700 rounded-lg shadow-xl z-50">
+                            <div class="p-2 border-b border-dark-700">
+                                <button type="button" onclick="clearCategories()" class="text-xs text-dark-400 hover:text-dark-200">Clear all</button>
+                            </div>
+                            {% for cat in all_categories %}
+                            <label class="flex items-center gap-2 px-3 py-2 hover:bg-dark-800 cursor-pointer text-sm">
+                                <input type="checkbox" value="{{ cat }}" onchange="updateCategorySelection()"
+                                       {% if cat in selected_categories %}checked{% endif %}
+                                       class="w-4 h-4 rounded border-dark-600 bg-dark-800 text-emerald-500 focus:ring-emerald-500 focus:ring-offset-0">
+                                <span class="text-dark-300">{{ cat }}</span>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Institution Filter -->
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-dark-500">Institution</span>
+                    <select id="institutionSelect"
                             onchange="updateFilters()"
-                            class="text-sm bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-600 cursor-pointer min-w-[200px]">
-                        <option value="">All Categories</option>
-                        {% for cat in categories %}
-                        <option value="{{ cat }}" {% if cat == category %}selected{% endif %}>{{ cat }}</option>
+                            class="text-sm bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-600 cursor-pointer">
+                        <option value="">All</option>
+                        {% for inst in institutions %}
+                        <option value="{{ inst }}" {% if inst == institution %}selected{% endif %}>{{ inst.upper() }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -127,45 +154,130 @@
                     </select>
                 </div>
 
-                <!-- Sort Controls -->
-                <div class="flex items-center gap-2 ml-auto">
-                    <span class="text-xs text-dark-500">Sort</span>
-                    <select id="sortSelect"
-                            onchange="updateFilters()"
-                            class="text-sm bg-dark-950 border border-dark-700 rounded-lg px-3 py-1.5 text-dark-200 focus:outline-none focus:border-dark-600 cursor-pointer">
-                        <option value="slope" {% if sort == 'slope' %}selected{% endif %}>Growth Rate</option>
-                        <option value="h_index" {% if sort == 'h_index' %}selected{% endif %}>H-Index</option>
-                        <option value="two_yr_citedness" {% if sort == 'two_yr_citedness' %}selected{% endif %}>2yr Citedness</option>
-                        <option value="name" {% if sort == 'name' %}selected{% endif %}>Name</option>
-                    </select>
-                    <a href="/rising-stars?sort={{ sort }}&order={{ 'asc' if order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
-                       class="p-1.5 text-dark-500 hover:text-dark-300 hover:bg-dark-800 rounded transition-colors">
-                        <svg class="w-4 h-4 {% if order == 'asc' %}rotate-180{% endif %}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 9l-7 7-7-7"/>
-                        </svg>
-                    </a>
-                </div>
+                <!-- H-Index > 1 Filter -->
+                <button onclick="toggleMinH()"
+                        class="px-3 py-1.5 text-sm rounded-lg transition-all {% if min_h > 0 %}bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25{% else %}bg-dark-800 text-dark-400 hover:text-dark-200 hover:bg-dark-700{% endif %}"
+                        title="Hide researchers with h-index ≤ 1">
+                    h &gt; 1
+                </button>
             </div>
-            {% if category %}
-            <div class="mt-3 pt-3 border-t border-dark-800">
-                <span class="text-xs text-dark-500">Filtering by:</span>
-                <span class="ml-2 px-2 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 rounded-full">{{ category }}</span>
-                <a href="/rising-stars?sort={{ sort }}&order={{ order }}&start_year={{ start_year }}&end_year={{ end_year }}"
-                   class="ml-2 text-xs text-dark-500 hover:text-dark-300">Clear filter</a>
+
+            <!-- Active Filters & Sort Indicator -->
+            {% if selected_categories or institution or sorts|length > 0 %}
+            <div class="mt-3 pt-3 border-t border-dark-800 flex flex-wrap items-center gap-2">
+                {% for cat in selected_categories %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 rounded-full">{{ cat }}</span>
+                {% endfor %}
+                {% if institution %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-purple-500/10 text-purple-400 rounded-full">{{ institution.upper() }}</span>
+                {% endif %}
+                {% if sorts|length > 0 %}
+                <span class="text-xs text-dark-500 ml-2">Sorted by:</span>
+                {% for col, dir in sorts %}
+                <span class="px-2 py-0.5 text-xs font-medium bg-dark-800 text-dark-300 rounded-full">
+                    {% if col == 'slope' %}Growth{% elif col == 'cited_by_count' %}Citations{% else %}{{ col.replace('_', ' ').title() }}{% endif %} {{ '↓' if dir == 'DESC' else '↑' }}{% if loop.index > 1 %}<sup>{{ loop.index }}</sup>{% endif %}
+                </span>
+                {% endfor %}
+                {% endif %}
+                {% if selected_categories or institution %}
+                <a href="/rising-stars?sort={{ sort }}&start_year={{ start_year }}&end_year={{ end_year }}" class="text-xs text-dark-500 hover:text-dark-300 ml-2">Clear filters</a>
+                {% endif %}
             </div>
             {% endif %}
         </div>
 
         <script>
+            // Track current sorts and min_h filter
+            let currentSorts = [{% for col, dir in sorts %}["{{ col }}", "{{ dir }}"]{% if not loop.last %}, {% endif %}{% endfor %}];
+            let minH = {{ min_h }};
+
+            function getSelectedCategories() {
+                const checkboxes = document.querySelectorAll('#categoryDropdown input[type="checkbox"]:checked');
+                return Array.from(checkboxes).map(cb => cb.value);
+            }
+
             function updateFilters() {
-                const category = document.getElementById('categorySelect').value;
+                const categories = getSelectedCategories().join(',');
+                const institution = document.getElementById('institutionSelect').value;
                 const startYear = document.getElementById('startYear').value;
                 const endYear = document.getElementById('endYear').value;
-                const sort = document.getElementById('sortSelect').value;
-                let url = '/rising-stars?sort=' + sort + '&order={{ order }}&page=1&start_year=' + startYear + '&end_year=' + endYear;
-                if (category) {
-                    url += '&category=' + encodeURIComponent(category);
+                const sortStr = currentSorts.map(s => s[0] + ':' + s[1].toLowerCase()).join(',');
+
+                let url = '/rising-stars?sort=' + encodeURIComponent(sortStr) + '&page=1&start_year=' + startYear + '&end_year=' + endYear;
+                if (categories) url += '&categories=' + encodeURIComponent(categories);
+                if (institution) url += '&institution=' + encodeURIComponent(institution);
+                if (minH > 0) url += '&min_h=' + minH;
+                window.location = url;
+            }
+
+            function toggleCategoryDropdown() {
+                const dropdown = document.getElementById('categoryDropdown');
+                dropdown.classList.toggle('hidden');
+            }
+
+            function updateCategorySelection() {
+                const selected = getSelectedCategories();
+                document.getElementById('categoryLabel').textContent = selected.length ? selected.length + ' selected' : 'All';
+                updateFilters();
+            }
+
+            function clearCategories() {
+                document.querySelectorAll('#categoryDropdown input[type="checkbox"]').forEach(cb => cb.checked = false);
+                updateCategorySelection();
+            }
+
+            // Close dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                const dropdown = document.getElementById('categoryDropdown');
+                const button = dropdown?.previousElementSibling;
+                if (dropdown && !dropdown.contains(e.target) && !button?.contains(e.target)) {
+                    dropdown.classList.add('hidden');
                 }
+            });
+
+            function toggleMinH() {
+                minH = minH > 0 ? 0 : 1;
+                updateFilters();
+            }
+
+            function toggleSort(column) {
+                const categories = getSelectedCategories().join(',');
+                const institution = document.getElementById('institutionSelect').value;
+                const startYear = document.getElementById('startYear').value;
+                const endYear = document.getElementById('endYear').value;
+
+                // Find if column already in sorts
+                const existingIdx = currentSorts.findIndex(s => s[0] === column);
+
+                if (existingIdx === -1) {
+                    // Not in sorts, add as primary (shift others down)
+                    currentSorts.unshift([column, 'DESC']);
+                    // Keep max 3 sorts
+                    if (currentSorts.length > 3) currentSorts.pop();
+                } else if (existingIdx === 0) {
+                    // Primary sort - toggle direction or remove
+                    if (currentSorts[0][1] === 'DESC') {
+                        currentSorts[0][1] = 'ASC';
+                    } else {
+                        // Remove this sort
+                        currentSorts.shift();
+                    }
+                } else {
+                    // Secondary sort - promote to primary
+                    const [removed] = currentSorts.splice(existingIdx, 1);
+                    currentSorts.unshift(removed);
+                }
+
+                // Default to slope if no sorts
+                if (currentSorts.length === 0) {
+                    currentSorts = [['slope', 'DESC']];
+                }
+
+                const sortStr = currentSorts.map(s => s[0] + ':' + s[1].toLowerCase()).join(',');
+                let url = '/rising-stars?sort=' + encodeURIComponent(sortStr) + '&page=1&start_year=' + startYear + '&end_year=' + endYear;
+                if (categories) url += '&categories=' + encodeURIComponent(categories);
+                if (institution) url += '&institution=' + encodeURIComponent(institution);
+                if (minH > 0) url += '&min_h=' + minH;
                 window.location = url;
             }
         </script>
@@ -176,30 +288,25 @@
                 <thead>
                     <tr class="border-b border-dark-800">
                         <th class="text-left text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4 w-12">#</th>
-                        <th class="text-left text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">
-                            <a href="/rising-stars?sort=name&order={{ 'desc' if sort == 'name' and order == 'asc' else 'asc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
-                               class="hover:text-dark-300 {% if sort == 'name' %}text-dark-200{% endif %}">
-                                Researcher {% if sort == 'name' %}{{ '↑' if order == 'asc' else '↓' }}{% endif %}
-                            </a>
-                        </th>
+                        <th class="text-left text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">Researcher</th>
                         <th class="text-center text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">{{ start_year }}-{{ end_year }} Trend</th>
                         <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">
-                            <a href="/rising-stars?sort=slope&order={{ 'asc' if sort == 'slope' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
-                               class="hover:text-dark-300 {% if sort == 'slope' %}text-dark-200{% endif %}">
-                                Growth {% if sort == 'slope' %}{{ '↑' if order == 'asc' else '↓' }}{% endif %}
-                            </a>
+                            <button onclick="toggleSort('slope')" class="hover:text-dark-200 transition-colors inline-flex items-center gap-1">
+                                Growth
+                                {% for col, dir in sorts %}{% if col == 'slope' %}<span class="text-emerald-400">{{ '↓' if dir == 'DESC' else '↑' }}{% if loop.index > 1 %}<sup>{{ loop.index }}</sup>{% endif %}</span>{% endif %}{% endfor %}
+                            </button>
                         </th>
                         <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">
-                            <a href="/rising-stars?sort=h_index&order={{ 'asc' if sort == 'h_index' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
-                               class="hover:text-dark-300 {% if sort == 'h_index' %}text-dark-200{% endif %}">
-                                H-Index {% if sort == 'h_index' %}{{ '↑' if order == 'asc' else '↓' }}{% endif %}
-                            </a>
+                            <button onclick="toggleSort('h_index')" class="hover:text-dark-200 transition-colors inline-flex items-center gap-1">
+                                H-Index
+                                {% for col, dir in sorts %}{% if col == 'h_index' %}<span class="text-emerald-400">{{ '↓' if dir == 'DESC' else '↑' }}{% if loop.index > 1 %}<sup>{{ loop.index }}</sup>{% endif %}</span>{% endif %}{% endfor %}
+                            </button>
                         </th>
                         <th class="text-right text-xs font-medium text-dark-500 uppercase tracking-wider py-3 px-4">
-                            <a href="/rising-stars?sort=two_yr_citedness&order={{ 'asc' if sort == 'two_yr_citedness' and order == 'desc' else 'desc' }}&page=1&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
-                               class="hover:text-dark-300 {% if sort == 'two_yr_citedness' %}text-dark-200{% endif %}">
-                                2yr Cite {% if sort == 'two_yr_citedness' %}{{ '↑' if order == 'asc' else '↓' }}{% endif %}
-                            </a>
+                            <button onclick="toggleSort('cited_by_count')" class="hover:text-dark-200 transition-colors inline-flex items-center gap-1">
+                                Citations
+                                {% for col, dir in sorts %}{% if col == 'cited_by_count' %}<span class="text-emerald-400">{{ '↓' if dir == 'DESC' else '↑' }}{% if loop.index > 1 %}<sup>{{ loop.index }}</sup>{% endif %}</span>{% endif %}{% endfor %}
+                            </button>
                         </th>
                     </tr>
                 </thead>
@@ -258,7 +365,7 @@
                             <span class="text-sm font-semibold text-dark-50 tabular-nums">{{ r.h_index }}</span>
                         </td>
                         <td class="py-3 px-4 text-right">
-                            <span class="text-sm text-dark-400 tabular-nums">{{ "%.1f"|format(r.two_yr_citedness) }}</span>
+                            <span class="text-sm text-dark-400 tabular-nums">{{ "{:,}".format(r.cited_by_count) }}</span>
                         </td>
                     </tr>
                     {% else %}
@@ -281,7 +388,7 @@
             </div>
             <div class="flex items-center gap-2">
                 {% if page > 1 %}
-                <a href="/rising-stars?page={{ page - 1 }}&sort={{ sort }}&order={{ order }}&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
+                <a href="/rising-stars?page={{ page - 1 }}&sort={{ sort }}&start_year={{ start_year }}&end_year={{ end_year }}&categories={{ selected_categories|join(',') }}&institution={{ institution }}&min_h={{ min_h }}"
                    class="px-3 py-1.5 text-sm text-dark-400 hover:text-dark-200 bg-dark-900 border border-dark-800 rounded-lg hover:border-dark-700 transition-colors">
                     Previous
                 </a>
@@ -290,7 +397,7 @@
                     {{ page }} / {{ total_pages }}
                 </span>
                 {% if page < total_pages %}
-                <a href="/rising-stars?page={{ page + 1 }}&sort={{ sort }}&order={{ order }}&start_year={{ start_year }}&end_year={{ end_year }}&category={{ category }}"
+                <a href="/rising-stars?page={{ page + 1 }}&sort={{ sort }}&start_year={{ start_year }}&end_year={{ end_year }}&categories={{ selected_categories|join(',') }}&institution={{ institution }}&min_h={{ min_h }}"
                    class="px-3 py-1.5 text-sm text-dark-400 hover:text-dark-200 bg-dark-900 border border-dark-800 rounded-lg hover:border-dark-700 transition-colors">
                     Next
                 </a>

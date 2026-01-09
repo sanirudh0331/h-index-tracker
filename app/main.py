@@ -33,6 +33,41 @@ def fetch_author_metadata(author_id: str) -> dict:
     except Exception:
         return {"institution_count": None, "alternative_names": [], "twitter": None, "wikipedia": None}
 
+
+def fetch_top_papers(author_id: str, limit: int = 6) -> list:
+    """Fetch top papers by citation count from OpenAlex."""
+    try:
+        with httpx.Client() as client:
+            resp = client.get(
+                "https://api.openalex.org/works",
+                params={
+                    "filter": f"author.id:{author_id},type:article",
+                    "sort": "cited_by_count:desc",
+                    "per_page": limit,
+                    "mailto": OPENALEX_EMAIL
+                },
+                timeout=10
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            papers = []
+            for w in data.get("results", []):
+                # Get DOI link or OpenAlex link
+                doi = w.get("doi")
+                openalex_id = w.get("id", "").replace("https://openalex.org/", "")
+                link = doi if doi else f"https://openalex.org/{openalex_id}"
+
+                papers.append({
+                    "title": w.get("title", "Untitled"),
+                    "year": w.get("publication_year"),
+                    "citations": w.get("cited_by_count", 0),
+                    "link": link
+                })
+            return papers
+    except Exception:
+        return []
+
+
 app = FastAPI(title="KdT Talent Scout")
 app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -44,48 +79,91 @@ def get_db():
     return conn
 
 
+def parse_multi_sort(sort_str: str) -> list:
+    """Parse multi-column sort string like 'h_index:desc,cited_by_count:asc'."""
+    valid_cols = ["h_index", "works_count", "cited_by_count", "two_yr_citedness", "name"]
+    sorts = []
+    if not sort_str:
+        return [("h_index", "DESC")]
+    for part in sort_str.split(","):
+        if ":" in part:
+            col, direction = part.split(":", 1)
+            col = col.strip()
+            direction = direction.strip().upper()
+            if col in valid_cols and direction in ("ASC", "DESC"):
+                sorts.append((col, direction))
+        else:
+            col = part.strip()
+            if col in valid_cols:
+                sorts.append((col, "DESC"))
+    return sorts if sorts else [("h_index", "DESC")]
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(
     request: Request,
-    sort: str = "h_index",
-    order: str = "desc",
+    sort: str = "h_index:desc",
     search: str = "",
     page: int = 1,
-    per_page: int = 50
+    per_page: int = 50,
+    categories: str = "",
+    institution: str = "",
+    min_h: int = 0
 ):
     """Main dashboard showing all researchers."""
     conn = get_db()
 
-    # Valid sort columns
-    valid_sorts = ["h_index", "works_count", "cited_by_count", "two_yr_citedness", "name"]
-    if sort not in valid_sorts:
-        sort = "h_index"
-    order_dir = "DESC" if order == "desc" else "ASC"
+    # Parse multi-column sort
+    sorts = parse_multi_sort(sort)
+    order_clause = ", ".join(f"{col} {direction}" for col, direction in sorts)
+
+    # Get all categories for dropdown
+    all_categories = [row[0] for row in conn.execute(
+        "SELECT DISTINCT primary_category FROM researchers WHERE primary_category IS NOT NULL ORDER BY primary_category"
+    ).fetchall()]
+
+    # Get institutions for dropdown
+    institutions = [row[0] for row in conn.execute(
+        "SELECT DISTINCT synced_from FROM researchers WHERE synced_from IS NOT NULL ORDER BY synced_from"
+    ).fetchall()]
+
+    # Parse selected categories from query param
+    selected_categories = [c.strip() for c in categories.split(",") if c.strip()] if categories else []
+
+    # Build WHERE clause
+    conditions = []
+    params = []
+    if search:
+        conditions.append("name LIKE ?")
+        params.append(f"%{search}%")
+    if selected_categories:
+        placeholders = ",".join("?" * len(selected_categories))
+        conditions.append(f"primary_category IN ({placeholders})")
+        params.extend(selected_categories)
+    if institution:
+        conditions.append("synced_from = ?")
+        params.append(institution)
+    if min_h > 0:
+        conditions.append("h_index > ?")
+        params.append(min_h)
+
+    where_clause = " AND ".join(conditions) if conditions else "1=1"
 
     # Count total
-    if search:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM researchers WHERE name LIKE ?",
-            (f"%{search}%",)
-        ).fetchone()[0]
-    else:
-        total = conn.execute("SELECT COUNT(*) FROM researchers").fetchone()[0]
+    total = conn.execute(
+        f"SELECT COUNT(*) FROM researchers WHERE {where_clause}",
+        params
+    ).fetchone()[0]
 
     # Fetch researchers
     offset = (page - 1) * per_page
-    if search:
-        researchers = conn.execute(
-            f"""SELECT * FROM researchers
-                WHERE name LIKE ?
-                ORDER BY {sort} {order_dir}
-                LIMIT ? OFFSET ?""",
-            (f"%{search}%", per_page, offset)
-        ).fetchall()
-    else:
-        researchers = conn.execute(
-            f"SELECT * FROM researchers ORDER BY {sort} {order_dir} LIMIT ? OFFSET ?",
-            (per_page, offset)
-        ).fetchall()
+    researchers = conn.execute(
+        f"""SELECT * FROM researchers
+            WHERE {where_clause}
+            ORDER BY {order_clause}
+            LIMIT ? OFFSET ?""",
+        params + [per_page, offset]
+    ).fetchall()
 
     conn.close()
 
@@ -110,8 +188,13 @@ async def dashboard(
             "per_page": per_page,
             "total_pages": total_pages,
             "sort": sort,
-            "order": order,
-            "search": search
+            "sorts": sorts,
+            "search": search,
+            "selected_categories": selected_categories,
+            "all_categories": all_categories,
+            "institution": institution,
+            "institutions": institutions,
+            "min_h": min_h
         }
     )
 
@@ -136,16 +219,37 @@ def calculate_slope(history: dict, start_year: int, end_year: int) -> float:
     return round(slope, 3)
 
 
+def parse_rising_stars_sort(sort_str: str) -> list:
+    """Parse multi-column sort string for rising stars."""
+    valid_cols = ["slope", "h_index", "two_yr_citedness", "cited_by_count", "name"]
+    sorts = []
+    if not sort_str:
+        return [("slope", "DESC")]
+    for part in sort_str.split(","):
+        if ":" in part:
+            col, direction = part.split(":", 1)
+            col = col.strip()
+            direction = direction.strip().upper()
+            if col in valid_cols and direction in ("ASC", "DESC"):
+                sorts.append((col, direction))
+        else:
+            col = part.strip()
+            if col in valid_cols:
+                sorts.append((col, "DESC"))
+    return sorts if sorts else [("slope", "DESC")]
+
+
 @app.get("/rising-stars", response_class=HTMLResponse)
 async def rising_stars(
     request: Request,
-    sort: str = "slope",
-    order: str = "desc",
+    sort: str = "slope:desc",
     page: int = 1,
     per_page: int = 50,
     start_year: int = 2015,
     end_year: int = 2025,
-    category: str = ""
+    categories: str = "",
+    institution: str = "",
+    min_h: int = 0
 ):
     """Rising stars - researchers with high H-index growth."""
     conn = get_db()
@@ -154,39 +258,49 @@ async def rising_stars(
     start_year = max(2015, min(2025, start_year))
     end_year = max(start_year, min(2025, end_year))
 
-    # Valid sort columns
-    valid_sorts = ["slope", "h_index", "two_yr_citedness", "name"]
-    if sort not in valid_sorts:
-        sort = "slope"
-    order_dir = "DESC" if order == "desc" else "ASC"
+    # Parse multi-column sort
+    sorts = parse_rising_stars_sort(sort)
 
     # Get all categories for dropdown
-    categories = [row[0] for row in conn.execute(
+    all_categories = [row[0] for row in conn.execute(
         "SELECT DISTINCT primary_category FROM researchers WHERE primary_category IS NOT NULL ORDER BY primary_category"
     ).fetchall()]
 
-    # Count total with computed history (filtered by category if specified)
-    if category:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM researchers WHERE history_computed = 1 AND primary_category = ?",
-            (category,)
-        ).fetchone()[0]
-    else:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM researchers WHERE history_computed = 1"
-        ).fetchone()[0]
+    # Get institutions for dropdown
+    institutions = [row[0] for row in conn.execute(
+        "SELECT DISTINCT synced_from FROM researchers WHERE synced_from IS NOT NULL ORDER BY synced_from"
+    ).fetchall()]
+
+    # Parse selected categories from query param
+    selected_categories = [c.strip() for c in categories.split(",") if c.strip()] if categories else []
+
+    # Build WHERE clause
+    conditions = ["history_computed = 1"]
+    params = []
+    if selected_categories:
+        placeholders = ",".join("?" * len(selected_categories))
+        conditions.append(f"primary_category IN ({placeholders})")
+        params.extend(selected_categories)
+    if institution:
+        conditions.append("synced_from = ?")
+        params.append(institution)
+    if min_h > 0:
+        conditions.append("h_index > ?")
+        params.append(min_h)
+
+    where_clause = " AND ".join(conditions)
+
+    # Count total with computed history
+    total = conn.execute(
+        f"SELECT COUNT(*) FROM researchers WHERE {where_clause}",
+        params
+    ).fetchone()[0]
 
     # Get all researchers with computed history (we'll calculate slope and sort in Python)
-    if category:
-        all_researchers = conn.execute("""
-            SELECT * FROM researchers
-            WHERE history_computed = 1 AND primary_category = ?
-        """, (category,)).fetchall()
-    else:
-        all_researchers = conn.execute("""
-            SELECT * FROM researchers
-            WHERE history_computed = 1
-        """).fetchall()
+    all_researchers = conn.execute(f"""
+        SELECT * FROM researchers
+        WHERE {where_clause}
+    """, params).fetchall()
 
     # Get all H-index history at once for efficiency
     all_history = conn.execute("""
@@ -227,15 +341,45 @@ async def rising_stars(
 
         researchers_data.append(data)
 
-    # Sort by the selected column
-    if sort == "slope":
-        researchers_data.sort(key=lambda x: x["dynamic_slope"], reverse=(order == "desc"))
-    elif sort == "h_index":
-        researchers_data.sort(key=lambda x: x["h_index"], reverse=(order == "desc"))
-    elif sort == "two_yr_citedness":
-        researchers_data.sort(key=lambda x: x["two_yr_citedness"], reverse=(order == "desc"))
-    elif sort == "name":
-        researchers_data.sort(key=lambda x: x["name"], reverse=(order == "desc"))
+    # Multi-column sort - build sort key function
+    def make_sort_key(item):
+        keys = []
+        for col, direction in sorts:
+            if col == "slope":
+                val = item["dynamic_slope"]
+            elif col == "h_index":
+                val = item["h_index"]
+            elif col == "two_yr_citedness":
+                val = item["two_yr_citedness"]
+            elif col == "cited_by_count":
+                val = item["cited_by_count"]
+            elif col == "name":
+                val = item["name"]
+            else:
+                val = 0
+            # Negate numeric values for DESC order
+            if direction == "DESC" and isinstance(val, (int, float)):
+                val = -val
+            elif direction == "DESC" and isinstance(val, str):
+                # For strings, we'll handle this differently
+                val = val
+            keys.append(val)
+        return keys
+
+    # For proper multi-column sorting with mixed directions, use successive stable sorts
+    # Sort in reverse order of priority (last column first)
+    for col, direction in reversed(sorts):
+        reverse_sort = (direction == "DESC")
+        if col == "slope":
+            researchers_data.sort(key=lambda x: x["dynamic_slope"], reverse=reverse_sort)
+        elif col == "h_index":
+            researchers_data.sort(key=lambda x: x["h_index"], reverse=reverse_sort)
+        elif col == "two_yr_citedness":
+            researchers_data.sort(key=lambda x: x["two_yr_citedness"], reverse=reverse_sort)
+        elif col == "cited_by_count":
+            researchers_data.sort(key=lambda x: x["cited_by_count"], reverse=reverse_sort)
+        elif col == "name":
+            researchers_data.sort(key=lambda x: x["name"], reverse=reverse_sort)
 
     # Calculate stats for selected year range
     slopes = [r["dynamic_slope"] for r in researchers_data]
@@ -260,14 +404,17 @@ async def rising_stars(
             "per_page": per_page,
             "total_pages": total_pages,
             "sort": sort,
-            "order": order,
+            "sorts": sorts,
             "start_year": start_year,
             "end_year": end_year,
             "top_slope": top_slope,
             "avg_slope": avg_slope,
             "avg_h_index": avg_h,
-            "categories": categories,
-            "category": category
+            "all_categories": all_categories,
+            "selected_categories": selected_categories,
+            "institution": institution,
+            "institutions": institutions,
+            "min_h": min_h
         }
     )
 
@@ -290,21 +437,88 @@ async def researcher_detail(request: Request, researcher_id: str):
     data["affiliations"] = json.loads(data["affiliations"]) if data["affiliations"] else []
     data["counts_by_year"] = json.loads(data["counts_by_year"]) if data["counts_by_year"] else {}
 
-    # Compute velocity metrics from existing data
-    if data["counts_by_year"]:
-        years = list(data["counts_by_year"].keys())
-        num_years = len(years)
-        if num_years > 0:
-            total_works = sum(c.get("works", 0) for c in data["counts_by_year"].values())
-            total_cited = sum(c.get("cited", 0) for c in data["counts_by_year"].values())
-            data["pub_velocity"] = round(total_works / num_years, 1)
-            data["citation_velocity"] = round(total_cited / num_years, 0)
-        else:
-            data["pub_velocity"] = None
-            data["citation_velocity"] = None
+    # Compute velocity metrics from existing data (using MEDIAN to handle outliers)
+    data["data_quality_issues"] = []
+
+    if data["counts_by_year"] and len(data["counts_by_year"]) >= 3:
+        yearly_works = [(year, c.get("works", 0)) for year, c in data["counts_by_year"].items()]
+        yearly_cited = [(year, c.get("cited", 0)) for year, c in data["counts_by_year"].items()]
+
+        works_values = sorted([w for _, w in yearly_works])
+        cited_values = sorted([c for _, c in yearly_cited])
+
+        # Calculate medians
+        works_median = works_values[len(works_values) // 2]
+        cited_median = cited_values[len(cited_values) // 2]
+
+        data["pub_velocity"] = works_median
+        data["citation_velocity"] = cited_median
+
+        # Detect publication anomaly (max > 5x median, where median > 5)
+        max_works = max(works_values)
+        max_works_year = [y for y, w in yearly_works if w == max_works][0]
+        if works_median > 5 and max_works > 5 * works_median:
+            data["data_quality_issues"].append({
+                "type": "pub_spike",
+                "message": f"Publication spike: {max_works:,} papers in {max_works_year} vs median of {works_median}"
+            })
+
+        # Detect citation anomaly (max > 10x median, where median > 100)
+        max_cited = max(cited_values)
+        max_cited_year = [y for y, c in yearly_cited if c == max_cited][0]
+        if cited_median > 100 and max_cited > 10 * cited_median:
+            data["data_quality_issues"].append({
+                "type": "cite_spike",
+                "message": f"Citation spike: {max_cited:,} citations in {max_cited_year} vs median of {cited_median:,}"
+            })
     else:
         data["pub_velocity"] = None
         data["citation_velocity"] = None
+
+    # Citations per paper
+    if data["works_count"] and data["works_count"] > 0:
+        data["citations_per_paper"] = round(data["cited_by_count"] / data["works_count"], 1)
+    else:
+        data["citations_per_paper"] = None
+
+    # Calculate percentile within category
+    category = data.get("primary_category")
+    h_index = data.get("h_index", 0)
+    if category and h_index:
+        # Count researchers in same category with lower h-index
+        result = conn.execute("""
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN h_index < ? THEN 1 ELSE 0 END) as below
+            FROM researchers
+            WHERE primary_category = ?
+        """, (h_index, category)).fetchone()
+        total_in_category = result[0]
+        below_count = result[1]
+        if total_in_category > 0:
+            percentile = (below_count / total_in_category) * 100
+            data["percentile"] = round(percentile, 1)
+            data["category_rank"] = total_in_category - below_count
+            data["category_total"] = total_in_category
+            # Friendly label
+            if percentile >= 99:
+                data["percentile_label"] = "Top 1%"
+            elif percentile >= 95:
+                data["percentile_label"] = "Top 5%"
+            elif percentile >= 90:
+                data["percentile_label"] = "Top 10%"
+            elif percentile >= 75:
+                data["percentile_label"] = "Top 25%"
+            elif percentile >= 50:
+                data["percentile_label"] = "Top 50%"
+            else:
+                data["percentile_label"] = None
+        else:
+            data["percentile"] = None
+            data["percentile_label"] = None
+    else:
+        data["percentile"] = None
+        data["percentile_label"] = None
 
     # Get H-index history if available
     history = conn.execute("""
@@ -339,6 +553,18 @@ async def researcher_detail(request: Request, researcher_id: str):
         data["alternative_names"] = json.loads(alt_names_raw) if alt_names_raw else []
         data["twitter"] = data.get("twitter")
         data["wikipedia"] = data.get("wikipedia")
+
+    # Check institution count for data quality issues (>= 10 suggests merged profiles)
+    if data.get("institution_count") and data["institution_count"] >= 10:
+        data["data_quality_issues"].append({
+            "type": "institutions",
+            "message": f"{data['institution_count']} institutions linked (possible merged profiles)"
+        })
+
+    # Fetch top papers for Key Papers section
+    papers = fetch_top_papers(researcher_id, limit=6)
+    # Sort by year (oldest to newest)
+    data["top_papers"] = sorted(papers, key=lambda p: p.get("year") or 0)
 
     conn.close()
 
