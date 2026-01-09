@@ -287,6 +287,19 @@ async def researcher_detail(request: Request, researcher_id: str):
     data["affiliations"] = json.loads(data["affiliations"]) if data["affiliations"] else []
     data["counts_by_year"] = json.loads(data["counts_by_year"]) if data["counts_by_year"] else {}
 
+    # Compute career stage from existing data
+    if data["counts_by_year"]:
+        years_with_works = [int(y) for y, c in data["counts_by_year"].items() if c.get("works", 0) > 0]
+        if years_with_works:
+            data["first_pub_year"] = min(years_with_works)
+            data["years_active"] = 2025 - data["first_pub_year"]
+        else:
+            data["first_pub_year"] = None
+            data["years_active"] = None
+    else:
+        data["first_pub_year"] = None
+        data["years_active"] = None
+
     # Get H-index history if available
     history = conn.execute("""
         SELECT year, h_index FROM h_index_history
