@@ -80,11 +80,24 @@
                                 {% endfor %}
                             </div>
                             {% endif %}
-                            {% if r.orcid %}
-                            <a href="{{ r.orcid }}" target="_blank" class="text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
-                                {{ r.orcid }}
-                            </a>
-                            {% endif %}
+                            <!-- External profile links -->
+                            <div class="flex items-center gap-2">
+                                {% if r.orcid %}
+                                <a href="{{ r.orcid }}" target="_blank" title="ORCID Profile" class="opacity-70 hover:opacity-100 transition-opacity">
+                                    <svg class="w-5 h-5" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="128" cy="128" r="128" fill="#A6CE39"/>
+                                        <path fill="#fff" d="M86.3 186.2H70.9V79.1h15.4v107.1zM108.9 79.1h41.6c39.6 0 57 28.3 57 53.6 0 27.5-21.5 53.6-56.8 53.6h-41.8V79.1zm15.4 93.3h24.5c34.9 0 42.9-26.5 42.9-39.7 0-21.5-13.7-39.7-43.7-39.7h-23.3v79.4h-.4zM88.7 56.8c0 5.5-4.5 10.1-10.1 10.1-5.6 0-10.1-4.6-10.1-10.1 0-5.6 4.5-10.1 10.1-10.1 5.6 0 10.1 4.6 10.1 10.1z"/>
+                                    </svg>
+                                </a>
+                                {% endif %}
+                                <a href="https://openalex.org/{{ r.id }}" target="_blank" title="OpenAlex Profile" class="opacity-70 hover:opacity-100 transition-opacity">
+                                    <svg class="w-5 h-5" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <circle cx="50" cy="50" r="48" fill="#C41230"/>
+                                        <path d="M50 20C33.4 20 20 33.4 20 50s13.4 30 30 30 30-13.4 30-30S66.6 20 50 20zm0 52c-12.1 0-22-9.9-22-22s9.9-22 22-22 22 9.9 22 22-9.9 22-22 22z" fill="white"/>
+                                        <circle cx="50" cy="50" r="10" fill="white"/>
+                                    </svg>
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -308,16 +321,6 @@
         </script>
         {% endif %}
 
-        <!-- OpenAlex Link -->
-        <div class="mt-8 text-center">
-            <a href="https://openalex.org/{{ r.id }}" target="_blank"
-               class="inline-flex items-center gap-2 text-sm text-indigo-400 hover:text-indigo-300 transition-colors">
-                View on OpenAlex
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                </svg>
-            </a>
-        </div>
     </main>
 
     <footer class="border-t border-dark-800 mt-16">
