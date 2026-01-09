@@ -235,25 +235,32 @@ def extract_author_data(author: dict, institution_key: str) -> dict:
 
 def save_author(conn: sqlite3.Connection, data: dict) -> bool:
     """
-    Save author to database using INSERT OR IGNORE to prevent duplicates.
+    Save author to database.
+    - New researchers: inserted with synced_from = institution
+    - Existing researchers: skipped, but institution added to also_found_in
+
     Returns True if new researcher was inserted, False if already existed.
     """
     cursor = conn.cursor()
 
     # Check if researcher already exists
     existing = cursor.execute(
-        "SELECT id, synced_from FROM researchers WHERE id = ?",
+        "SELECT id, synced_from, also_found_in FROM researchers WHERE id = ?",
         (data["id"],)
     ).fetchone()
 
     if existing:
-        # Update synced_from to include this institution if not already there
+        # Already exists - update also_found_in for backend tracking (not displayed)
+        current_also = existing[2] or ""
         current_synced = existing[1] or ""
-        if data["synced_from"] not in current_synced:
-            new_synced = f"{current_synced},{data['synced_from']}" if current_synced else data["synced_from"]
+        inst = data["synced_from"]
+
+        # Only add to also_found_in if not already the primary source and not already tracked
+        if inst != current_synced and inst not in current_also:
+            new_also = f"{current_also},{inst}" if current_also else inst
             cursor.execute(
-                "UPDATE researchers SET synced_from = ?, updated_at = ? WHERE id = ?",
-                (new_synced, datetime.now().isoformat(), data["id"])
+                "UPDATE researchers SET also_found_in = ? WHERE id = ?",
+                (new_also, data["id"])
             )
         return False  # Already existed
 
