@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Config
-OPENALEX_EMAIL = "sanirudh0331@gmail.com"
+OPENALEX_EMAIL = "anirudh.sudarshan@utexas.edu"
 DB_PATH = Path(__file__).parent.parent / "data" / "hindex.db"
 HISTORY_START = 2015
 HISTORY_END = 2025
