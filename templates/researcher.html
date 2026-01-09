@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ r.name }} - HMS Research</title>
+    <title>{{ r.name }} - KdT Talent Scout</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -32,7 +32,10 @@
         <div class="max-w-5xl mx-auto px-6">
             <div class="flex items-center justify-between h-14">
                 <div class="flex items-center gap-8">
-                    <span class="text-sm font-semibold tracking-tight">HMS Research</span>
+                    <a href="/" class="flex items-center gap-2">
+                        <img src="/static/kdt-logo.png" alt="KdT" class="h-7 w-auto">
+                        <span class="text-sm font-semibold tracking-tight">KdT Talent Scout</span>
+                    </a>
                     <a href="/" class="flex items-center gap-2 text-sm text-dark-400 hover:text-dark-200 transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
@@ -357,9 +360,8 @@
 
     <footer class="border-t border-dark-800 mt-16">
         <div class="max-w-5xl mx-auto px-6 py-6">
-            <div class="flex items-center justify-between text-xs text-dark-500">
-                <span>Data from OpenAlex</span>
-                <span>HMS Research Tracker</span>
+            <div class="text-center text-xs text-dark-500">
+                Powered by KdT AI
             </div>
         </div>
     </footer>

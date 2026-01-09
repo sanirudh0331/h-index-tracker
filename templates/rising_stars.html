@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rising Stars - HMS Research</title>
+    <title>Rising Stars - KdT Talent Scout</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -31,7 +31,10 @@
         <div class="max-w-6xl mx-auto px-6">
             <div class="flex items-center justify-between h-14">
                 <div class="flex items-center gap-8">
-                    <span class="text-sm font-semibold tracking-tight">HMS Research</span>
+                    <a href="/" class="flex items-center gap-2">
+                        <img src="/static/kdt-logo.png" alt="KdT" class="h-7 w-auto">
+                        <span class="text-sm font-semibold tracking-tight">KdT Talent Scout</span>
+                    </a>
                     <div class="flex items-center gap-1">
                         <a href="/" class="px-3 py-1.5 text-sm font-medium text-dark-400 hover:text-dark-200 transition-colors">
                             Researchers
@@ -299,9 +302,8 @@
 
     <footer class="border-t border-dark-800 mt-16">
         <div class="max-w-6xl mx-auto px-6 py-6">
-            <div class="flex items-center justify-between text-xs text-dark-500">
-                <span>Data from OpenAlex</span>
-                <span>Showing growth from {{ start_year }} to {{ end_year }}</span>
+            <div class="text-center text-xs text-dark-500">
+                Powered by KdT AI
             </div>
         </div>
     </footer>

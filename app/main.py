@@ -4,9 +4,11 @@ import httpx
 from pathlib import Path
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 DB_PATH = Path(__file__).parent.parent / "data" / "hindex.db"
+STATIC_PATH = Path(__file__).parent.parent / "static"
 OPENALEX_EMAIL = "anirudh.sudarshan@utexas.edu"
 
 
@@ -31,7 +33,8 @@ def fetch_author_metadata(author_id: str) -> dict:
     except Exception:
         return {"institution_count": None, "alternative_names": [], "twitter": None, "wikipedia": None}
 
-app = FastAPI(title="HMS Researcher Tracker")
+app = FastAPI(title="KdT Talent Scout")
+app.mount("/static", StaticFiles(directory=STATIC_PATH), name="static")
 templates = Jinja2Templates(directory="templates")
 
 
