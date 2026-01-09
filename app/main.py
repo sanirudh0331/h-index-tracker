@@ -11,7 +11,7 @@ OPENALEX_EMAIL = "anirudh.sudarshan@utexas.edu"
 
 
 def fetch_author_metadata(author_id: str) -> dict:
-    """Fetch institution count and alternative names from OpenAlex."""
+    """Fetch institution count, alternative names, and social links from OpenAlex."""
     try:
         with httpx.Client() as client:
             resp = client.get(
@@ -21,12 +21,15 @@ def fetch_author_metadata(author_id: str) -> dict:
             )
             resp.raise_for_status()
             data = resp.json()
+            ids = data.get("ids", {})
             return {
                 "institution_count": len(data.get("last_known_institutions", [])),
-                "alternative_names": data.get("display_name_alternatives", [])
+                "alternative_names": data.get("display_name_alternatives", []),
+                "twitter": ids.get("twitter"),
+                "wikipedia": ids.get("wikipedia")
             }
     except Exception:
-        return {"institution_count": None, "alternative_names": []}
+        return {"institution_count": None, "alternative_names": [], "twitter": None, "wikipedia": None}
 
 app = FastAPI(title="HMS Researcher Tracker")
 templates = Jinja2Templates(directory="templates")
@@ -292,18 +295,22 @@ async def researcher_detail(request: Request, researcher_id: str):
     """, (researcher_id,)).fetchall()
     data["h_history"] = {row[0]: row[1] for row in history}
 
-    # Fetch institution count and alternative names (cache in DB)
+    # Fetch institution count, alternative names, and social links (cache in DB)
     alt_names_raw = data.get("alternative_names")
     if data.get("institution_count") is None or not alt_names_raw:
         metadata = fetch_author_metadata(researcher_id)
         data["institution_count"] = metadata["institution_count"] or data.get("institution_count")
         data["alternative_names"] = metadata["alternative_names"]
+        data["twitter"] = metadata["twitter"]
+        data["wikipedia"] = metadata["wikipedia"]
         # Cache in database
         if metadata["institution_count"] is not None:
             try:
                 conn.execute(
-                    "UPDATE researchers SET institution_count = ?, alternative_names = ? WHERE id = ?",
-                    (data["institution_count"], json.dumps(metadata["alternative_names"]), researcher_id)
+                    """UPDATE researchers SET institution_count = ?, alternative_names = ?,
+                       twitter = ?, wikipedia = ? WHERE id = ?""",
+                    (data["institution_count"], json.dumps(metadata["alternative_names"]),
+                     metadata["twitter"], metadata["wikipedia"], researcher_id)
                 )
                 conn.commit()
             except Exception:
@@ -311,6 +318,8 @@ async def researcher_detail(request: Request, researcher_id: str):
     else:
         # Load from database
         data["alternative_names"] = json.loads(alt_names_raw) if alt_names_raw else []
+        data["twitter"] = data.get("twitter")
+        data["wikipedia"] = data.get("wikipedia")
 
     conn.close()
 
