@@ -287,18 +287,21 @@ async def researcher_detail(request: Request, researcher_id: str):
     data["affiliations"] = json.loads(data["affiliations"]) if data["affiliations"] else []
     data["counts_by_year"] = json.loads(data["counts_by_year"]) if data["counts_by_year"] else {}
 
-    # Compute career stage from existing data
+    # Compute velocity metrics from existing data
     if data["counts_by_year"]:
-        years_with_works = [int(y) for y, c in data["counts_by_year"].items() if c.get("works", 0) > 0]
-        if years_with_works:
-            data["first_pub_year"] = min(years_with_works)
-            data["years_active"] = 2025 - data["first_pub_year"]
+        years = list(data["counts_by_year"].keys())
+        num_years = len(years)
+        if num_years > 0:
+            total_works = sum(c.get("works", 0) for c in data["counts_by_year"].values())
+            total_cited = sum(c.get("cited", 0) for c in data["counts_by_year"].values())
+            data["pub_velocity"] = round(total_works / num_years, 1)
+            data["citation_velocity"] = round(total_cited / num_years, 0)
         else:
-            data["first_pub_year"] = None
-            data["years_active"] = None
+            data["pub_velocity"] = None
+            data["citation_velocity"] = None
     else:
-        data["first_pub_year"] = None
-        data["years_active"] = None
+        data["pub_velocity"] = None
+        data["citation_velocity"] = None
 
     # Get H-index history if available
     history = conn.execute("""
