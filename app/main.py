@@ -1,11 +1,32 @@
 import json
 import sqlite3
+import httpx
 from pathlib import Path
 from fastapi import FastAPI, Request, Query
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 DB_PATH = Path(__file__).parent.parent / "data" / "hindex.db"
+OPENALEX_EMAIL = "anirudh.sudarshan@utexas.edu"
+
+
+def fetch_author_metadata(author_id: str) -> dict:
+    """Fetch institution count and alternative names from OpenAlex."""
+    try:
+        with httpx.Client() as client:
+            resp = client.get(
+                f"https://api.openalex.org/authors/{author_id}",
+                params={"mailto": OPENALEX_EMAIL},
+                timeout=10
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return {
+                "institution_count": len(data.get("last_known_institutions", [])),
+                "alternative_names": data.get("display_name_alternatives", [])
+            }
+    except Exception:
+        return {"institution_count": None, "alternative_names": []}
 
 app = FastAPI(title="HMS Researcher Tracker")
 templates = Jinja2Templates(directory="templates")
@@ -270,6 +291,26 @@ async def researcher_detail(request: Request, researcher_id: str):
         ORDER BY year
     """, (researcher_id,)).fetchall()
     data["h_history"] = {row[0]: row[1] for row in history}
+
+    # Fetch institution count and alternative names (cache in DB)
+    alt_names_raw = data.get("alternative_names")
+    if data.get("institution_count") is None or not alt_names_raw:
+        metadata = fetch_author_metadata(researcher_id)
+        data["institution_count"] = metadata["institution_count"] or data.get("institution_count")
+        data["alternative_names"] = metadata["alternative_names"]
+        # Cache in database
+        if metadata["institution_count"] is not None:
+            try:
+                conn.execute(
+                    "UPDATE researchers SET institution_count = ?, alternative_names = ? WHERE id = ?",
+                    (data["institution_count"], json.dumps(metadata["alternative_names"]), researcher_id)
+                )
+                conn.commit()
+            except Exception:
+                pass  # Column might not exist yet
+    else:
+        # Load from database
+        data["alternative_names"] = json.loads(alt_names_raw) if alt_names_raw else []
 
     conn.close()
 
